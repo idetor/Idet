@@ -9,6 +9,10 @@
 #include <ctime>
 #include <string>
 
+
+
+
+const std::string version = "0.0.0";
 std::ofstream debugOut;
 
 void debug(const std::string& msg) {
@@ -122,6 +126,28 @@ std::string getWordSelectionRight(const std::string rightString) {
     return wordRight; 
 }
 
+void showHelp() {
+    erase();  // clear the screen
+
+    // Turn on color
+    attron(COLOR_PAIR(lineNumberScheme));
+
+    // Print help text
+    mvprintw(1, 0, "help");
+    mvprintw(2, 0, "help");
+    mvprintw(3, 0, "strg + c to copy");
+
+    // Turn off color
+    attroff(COLOR_PAIR(lineNumberScheme));
+
+    // Refresh to show changes
+    refresh();
+
+    // Wait for user to press any key
+    getch();
+}
+
+
 std::string subtractStringLeft(const std::string fullString, int subtraction) {
     if (subtraction <= 0) {
         return fullString; // nothing to remove
@@ -224,6 +250,10 @@ int main(int argc, char* argv[]) {
             printf("Usage: %s <filename> [-d debug_pipe]\n", argv[0]);
             return 0;
         }
+    if (std::string(argv[i]) == "-v" || std::string(argv[i]) == "--version") {
+        printf("Version %s\n", version.c_str());
+        return 0;
+    }
     }
     if (!debugTTY.empty()) {
     debugOut.open(debugTTY);
@@ -285,7 +315,10 @@ int main(int argc, char* argv[]) {
             debug("OnRight is: " + onRight);
         }
         
-        // new
+        // Show Help
+        else if (ch == KEY_F(1)) {
+            showHelp();
+        }
 
         // Toggle selection
         else if (ch == KEY_F(3)) {
