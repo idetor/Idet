@@ -7,6 +7,7 @@
 #include <filesystem>
 #include <chrono>
 #include <ctime>
+#include <string>
 std::ofstream debugOut;
 
 void debug(const std::string& msg) {
@@ -97,6 +98,31 @@ std::string formatTime(int time) {
     return std::string(buffer);
 }
 
+std::string getWordSelectionRight(const std::string rightString) {
+    std::string wordRight = "";
+
+    for (char c : rightString) {
+        if (c == ' ') {
+            return wordRight; 
+        }
+        wordRight += c;
+    }
+
+    return wordRight; 
+}
+
+std::string subtractStringLeft(const std::string fullString, int subtraction) {
+    if (subtraction <= 0) {
+        return fullString; // nothing to remove
+    }
+
+    if (subtraction >= fullString.length()) {
+        return ""; // remove everything
+    }
+
+    return fullString.substr(subtraction);
+}
+
 void draw(int cursorY, int cursorX, int rowOffset, const std::string& filename,
           int lineNumberScheme, int contentScheme, bool selectionActive, bool unsavedChanges) {
 
@@ -174,6 +200,8 @@ void draw(int cursorY, int cursorX, int rowOffset, const std::string& filename,
     refresh();
 }
 
+
+
 int main(int argc, char* argv[]) {
 
     std::string debugTTY;
@@ -233,6 +261,21 @@ int main(int argc, char* argv[]) {
             lineNumberScheme = (lineNumberScheme == 1) ? 2 : 1;
             contentScheme    = (contentScheme == 3) ? 4 : 3;
         }
+        // shift + arrow key to select
+        else if (ch == 402)
+        {
+            debug("shift + arrow right");
+
+            std::string stringAfter = subtractStringLeft(buffer[cursorY], cursorX);
+            debug("cursorY pos: " + std::to_string(cursorY));
+            debug("current line content:" + buffer[cursorY]);
+            std::string onRight = getWordSelectionRight(stringAfter);
+
+            debug("OnRight is: " + onRight);
+        }
+        
+
+
         // Toggle selection
         else if (ch == KEY_F(3)) {
             if (!selectionActive) {
