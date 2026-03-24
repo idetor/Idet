@@ -66,6 +66,7 @@ void copyClipboard(int startY , int endY){
                 clipboard += buffer[y].substr(lineStartX, lineEndX - lineStartX);
                 if (y != endY) clipboard += "\n";
             }
+            debug("copied to clipboard: " + clipboard);
 }
 
 
@@ -126,6 +127,7 @@ std::string getWordSelectionRight(const std::string rightString) {
     return wordRight; 
 }
 
+
 void showHelp() {
     erase();  // clear the screen
 
@@ -146,7 +148,6 @@ void showHelp() {
     // Wait for user to press any key
     getch();
 }
-
 
 std::string subtractStringLeft(const std::string fullString, int subtraction) {
     if (subtraction <= 0) {
@@ -388,7 +389,14 @@ int main(int argc, char* argv[]) {
         }
         // Printable characters
         else if (ch >= 32 && ch <= 126) {
-            buffer[cursorY].insert(cursorX, 1, ch);
+            // Ensure the line is long enough
+            if (cursorX > buffer[cursorY].size()) {
+                buffer[cursorY].resize(cursorX, ' '); // Fill missing spaces
+            }
+
+            // Insert character at cursor position
+            buffer[cursorY].insert(buffer[cursorY].begin() + cursorX, ch);
+
             cursorX++;
             unsavedChanges = true;
         }
