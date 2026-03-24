@@ -1,0 +1,5 @@
+command to create that thing:
+g++ main.cpp LlamaClient.cpp \
+    -I$HOME/llamacpp/include \
+    -L$HOME/llamacpp \
+    -lllama -lncurses -o editor

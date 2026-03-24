@@ -8,7 +8,7 @@
 #include <chrono>
 #include <ctime>
 #include <string>
-
+#include "headers/LlamaClient.hpp"
 
 
 
@@ -34,6 +34,7 @@ std::string clipboard;
 int lineNumberScheme = 1; // 1 or 2
 int contentScheme = 3;    // 3 or 4
 bool unsavedChanges = false;
+std::string modelPath = "";
 void loadFile(const std::string& filename) {
     std::ifstream file(filename);
     std::string line;
@@ -262,7 +263,8 @@ int main(int argc, char* argv[]) {
         fprintf(stderr, "Failed to open debug pipe: %s\n", debugTTY.c_str());
     }
     }
-
+    LlamaClient llama;
+    bool loaded = llama.load_model(modelPath);
     debug("Editor started");
     loadFile(argv[1]);
 
@@ -303,6 +305,30 @@ int main(int argc, char* argv[]) {
             lineNumberScheme = (lineNumberScheme == 1) ? 2 : 1;
             contentScheme    = (contentScheme == 3) ? 4 : 3;
         }
+        // Tab completion
+    else if (ch == 9) { // Tab Key
+        debug("Tab pressed - Triggering AI Completion");
+
+        // 1. Capture text from the current line
+        std::string txtBefore = "";
+        if (cursorY < buffer.size()) {
+            txtBefore = buffer[cursorY];
+        }
+
+        // 2. Check if the model is actually loaded
+        if (llama.is_ready()) {
+            debug("AI Status: Model is ready. Tokenizing...");
+            
+            // 3. Call your complete_text method
+            // This will trigger the llama_tokenize and llama_model_get_vocab logic
+            std::string ai_response = llama.complete_text(txtBefore);
+            
+            // 4. Output the result to your debug log
+            debug("AI Result: " + ai_response);
+        } else {
+            debug("AI Error: Model not loaded! Check load_model() path.");
+        }
+    }
         // shift + arrow key to select
         else if (ch == 402)
         {
