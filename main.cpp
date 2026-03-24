@@ -34,7 +34,7 @@ std::string clipboard;
 int lineNumberScheme = 1; // 1 or 2
 int contentScheme = 3;    // 3 or 4
 bool unsavedChanges = false;
-std::string modelPath = "";
+std::string modelPath = "/var/models/Qwen3.5-4B-Q4_K_M.gguf";
 void loadFile(const std::string& filename) {
     std::ifstream file(filename);
     std::string line;
@@ -265,6 +265,12 @@ int main(int argc, char* argv[]) {
     }
     LlamaClient llama;
     bool loaded = llama.load_model(modelPath);
+    
+    if (!loaded) {
+        debug("Failed to load Llama model. Check the path! Used path: " + modelPath);
+    } else {
+        debug("Llama model loaded successfully. Used model path: " + modelPath);
+    }
     debug("Editor started");
     loadFile(argv[1]);
 
