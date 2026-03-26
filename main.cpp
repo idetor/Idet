@@ -412,8 +412,13 @@ int main(int argc, char* argv[]) {
         for (std::size_t i = 0; i < llamaOutput.size(); ++i) {
             char charLlamaOutput = llamaOutput[i];
             if (charLlamaOutput == '\n') {
-                // Move cursor to next line
+                std::string newLine = buffer[cursorY].substr(cursorX);
+                buffer[cursorY] = buffer[cursorY].substr(0, cursorX);
+                buffer.insert(buffer.begin() + cursorY + 1, newLine);
                 cursorY++;
+                cursorX = 0;
+                // Move cursor to next line
+
                 // Ensure buffer has enough lines
                 if (cursorY >= buffer.size()) {
                     buffer.emplace_back("");
