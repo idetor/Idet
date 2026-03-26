@@ -177,81 +177,125 @@ std::string subtractStringLeft(const std::string fullString, int subtraction) {
 }
 
 void draw(int cursorY, int cursorX, int rowOffset, const std::string& filename,
-          int lineNumberScheme, int contentScheme, bool selectionActive, bool unsavedChanges) {
+          int lineNumberScheme, int contentScheme, bool selectionActive, bool unsavedChanges, int colOffset) {
 
-    erase();
+erase();
 
-    int lineNumberWidth = std::to_string(buffer.size()).length() + 2;
-    int maxRows = LINES - 2; // leave last line for status bar
+int lineNumberWidth = std::to_string(buffer.size()).length() + 2;
+int maxRows = LINES - 2; // leave last line for status bar
+int visibleWidth = COLS - lineNumberWidth;
+if (visibleWidth < 1) visibleWidth = 1;
 
-    // --- HEADER ---
-    attron(A_BOLD);
-    mvhline(0, 0, ' ', COLS); // fill header background
-    mvprintw(0, 0, "Idet-Editor - File: %s%s | Selection: %s",
-             filename.c_str(),
-             unsavedChanges ? "*" : "",
-             selectionActive ? "ON" : "OFF");
-    attroff(A_BOLD);
+// Ensure cursorY in range
+if (cursorY < 0) cursorY = 0;
+if (cursorY >= (int)buffer.size()) cursorY = (int)buffer.size() - 1;
 
-    // Determine selection range
-    int selTop = std::min(selStartY, selEndY);
-    int selBottom = std::max(selStartY, selEndY);
+// Clamp cursorX to current line length (allowing position at end)
+if (cursorX < 0) cursorX = 0;
+int lineLen = (cursorY >= 0 && cursorY < (int)buffer.size()) ? (int)buffer[cursorY].size() : 0;
+if (cursorX > lineLen) cursorX = lineLen;
 
-    for (int i = 0; i < maxRows && (rowOffset + i) < (int)buffer.size(); ++i) {
-        int fileLine = rowOffset + i;
-
-        // --- LINE NUMBERS ---
-        attron(COLOR_PAIR(lineNumberScheme));
-        mvhline(i + 1, 0, ' ', lineNumberWidth); // fill column background
-        mvprintw(i + 1, 0, "%*d", lineNumberWidth - 1, fileLine + 1);
-        attroff(COLOR_PAIR(lineNumberScheme));
-
-        // --- FILE CONTENT ---
-        attron(COLOR_PAIR(contentScheme));
-        //debug("Drawing line " + std::to_string(fileLine) + " with content: " + ((fileLine < (int)buffer.size()) ? buffer[fileLine]  + "in color scheme " + std::to_string(contentScheme) : "<empty>"));
-        mvhline(i + 1, lineNumberWidth, ' ', COLS - lineNumberWidth); // fill content background
-        attroff(COLOR_PAIR(contentScheme));
-
-        // Print content with selection highlighting if needed
-        if (fileLine >= (int)buffer.size()) continue;
-
-        std::string& line = buffer[fileLine];
-        for (size_t x = 0; x < line.size(); ++x) {
-            bool inSelection = false;
-            if (selectionActive) {
-                if (fileLine > selTop && fileLine < selBottom) inSelection = true;
-                else if (fileLine == selTop && fileLine == selBottom)
-                    inSelection = (x >= (size_t)std::min(selStartX, selEndX) &&
-                                x <  (size_t)std::max(selStartX, selEndX));
-                else if (fileLine == selTop)
-                    inSelection = (x >= (size_t)selStartX);
-                else if (fileLine == selBottom)
-                    inSelection = (x < (size_t)selEndX);
-            }
-
-            attron(COLOR_PAIR(contentScheme)); // apply color scheme to every char
-            if (inSelection) attron(A_REVERSE);
-
-            mvaddch(i + 1, lineNumberWidth + x, line[x]);
-
-            if (inSelection) attroff(A_REVERSE);
-            attroff(COLOR_PAIR(contentScheme));
-        }
-    }
-
-    // --- STATUS BAR ---
-    attron(A_REVERSE);
-    mvhline(LINES - 1, 0, ' ', COLS); // fill status bar
-    mvprintw(LINES - 1, 0, "CTRL+S=Save | CTRL+Q=Quit | Line %d/%d | Column %d/%d | Last Modified: %s",
-             cursorY + 1, (int)buffer.size(),
-             cursorX + 1, (int)buffer[cursorY].size() + 1,
-             formatTime(lastModifiedTime).c_str());
-    attroff(A_REVERSE);
-
-    // Move cursor
-    move(cursorY - rowOffset + 1, cursorX + lineNumberWidth);
-    refresh();
+// --- HORIZONTAL SCROLLING: update colOffset to ensure cursor visible ---
+// colOffset is assumed to be a persistent variable (global or member)
+if (cursorX < colOffset) {
+    colOffset = cursorX;
+} else if (cursorX >= colOffset + visibleWidth) {
+    colOffset = cursorX - visibleWidth + 1;
 }
+if (colOffset < 0) colOffset = 0;
+
+// Optionally clamp colOffset so we don't scroll past end of longest visible content:
+// Find max printable width for visible lines to avoid huge colOffset if lines are short.
+int maxLineLen = 0;
+for (int i = rowOffset; i < (int)buffer.size() && i < rowOffset + maxRows; ++i)
+    if ((int)buffer[i].size() > maxLineLen) maxLineLen = (int)buffer[i].size();
+int maxColOffset = std::max(0, maxLineLen - visibleWidth + 1);
+if (colOffset > maxColOffset) colOffset = maxColOffset;
+
+// --- HEADER ---
+attron(A_BOLD);
+mvhline(0, 0, ' ', COLS); // fill header background
+mvprintw(0, 0, "Idet-Editor - File: %s%s | Selection: %s",
+         filename.c_str(),
+         unsavedChanges ? "*" : "",
+         selectionActive ? "ON" : "OFF");
+attroff(A_BOLD);
+
+// Determine selection range
+int selTop = std::min(selStartY, selEndY);
+int selBottom = std::max(selStartY, selEndY);
+
+for (int i = 0; i < maxRows && (rowOffset + i) < (int)buffer.size(); ++i) {
+    int fileLine = rowOffset + i;
+
+    // --- LINE NUMBERS ---
+    attron(COLOR_PAIR(lineNumberScheme));
+    mvhline(i + 1, 0, ' ', lineNumberWidth); // fill column background
+    mvprintw(i + 1, 0, "%*d", lineNumberWidth - 1, fileLine + 1);
+    attroff(COLOR_PAIR(lineNumberScheme));
+
+    // --- FILE CONTENT BACKGROUND ---
+    attron(COLOR_PAIR(contentScheme));
+    mvhline(i + 1, lineNumberWidth, ' ', COLS - lineNumberWidth); // fill content background
+    attroff(COLOR_PAIR(contentScheme));
+
+    if (fileLine >= (int)buffer.size()) continue;
+    std::string& line = buffer[fileLine];
+
+    // Determine visible substring range based on colOffset
+    int startX = colOffset;
+    int endX = std::min((int)line.size(), colOffset + visibleWidth);
+
+    // If the visible region is empty, continue (or draw spaces)
+    if (startX >= endX) continue;
+
+    for (int x = startX; x < endX; ++x) {
+        int screenX = lineNumberWidth + (x - colOffset);
+        bool inSelection = false;
+        if (selectionActive) {
+            if (fileLine > selTop && fileLine < selBottom) inSelection = true;
+            else if (fileLine == selTop && fileLine == selBottom)
+                inSelection = (x >= std::min(selStartX, selEndX) && x < std::max(selStartX, selEndX));
+            else if (fileLine == selTop)
+                inSelection = (x >= selStartX);
+            else if (fileLine == selBottom)
+                inSelection = (x < selEndX);
+        }
+
+        attron(COLOR_PAIR(contentScheme));
+        if (inSelection) attron(A_REVERSE);
+
+        mvaddch(i + 1, screenX, line[x]);
+
+        if (inSelection) attroff(A_REVERSE);
+        attroff(COLOR_PAIR(contentScheme));
+    }
+}
+
+// --- STATUS BAR ---
+attron(A_REVERSE);
+mvhline(LINES - 1, 0, ' ', COLS); // fill status bar
+mvprintw(LINES - 1, 0, "CTRL+S=Save | CTRL+Q=Quit | Line %d/%d | Column %d/%d | Last Modified: %s",
+         cursorY + 1, (int)buffer.size(),
+         cursorX + 1, (int)buffer[cursorY].size() + 1,
+         formatTime(lastModifiedTime).c_str());
+attroff(A_REVERSE);
+
+// Move cursor: translate cursorX to screen using colOffset
+int screenCursorY = cursorY - rowOffset + 1;
+int screenCursorX = lineNumberWidth + (cursorX - colOffset);
+if (screenCursorY < 1) screenCursorY = 1;
+if (screenCursorY > LINES - 2) screenCursorY = LINES - 2;
+if (screenCursorX < lineNumberWidth) screenCursorX = lineNumberWidth;
+if (screenCursorX >= COLS) screenCursorX = COLS - 1;
+move(screenCursorY, screenCursorX);
+
+refresh();
+
+}
+
+
+
 bool checkFileExistance(const std::string& filePath) {
     std::ifstream file(filePath);
     return file.good();
@@ -356,6 +400,7 @@ int main(int argc, char* argv[]) {
 
     int cursorX = 0, cursorY = 0;
     int rowOffset = 0;
+    int colOffset = 0;
     int ch;
 
     while (true) {
@@ -364,7 +409,7 @@ int main(int argc, char* argv[]) {
         if (cursorY - rowOffset >= maxVisibleRows) rowOffset = cursorY - maxVisibleRows + 1;
         if (cursorY - rowOffset < 0) rowOffset = cursorY;
 
-        draw(cursorY, cursorX, rowOffset, argv[1], lineNumberScheme, contentScheme, selectionActive, unsavedChanges);
+        draw(cursorY, cursorX, rowOffset, argv[1], lineNumberScheme, contentScheme, selectionActive, unsavedChanges, colOffset);
 
         ch = getch();
         debug("Key pressed: " + std::to_string(ch));
