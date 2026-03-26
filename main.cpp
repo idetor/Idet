@@ -7,7 +7,8 @@
 #include <chrono>
 #include <ctime>
 #include "headers/LlamaClient.hpp"
-
+#include <string_view>
+#include <iostream>
 
 
 const std::string version = "0.0.0";
@@ -35,6 +36,7 @@ bool unsavedChanges = false;
 std::string modelPath = "/var/models/tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf";
 bool llamaInit = false;
 bool modelLoaded = false;
+bool createNewFile = true;
 // init global llama
 LlamaClient llama([](const std::string& msg) {
     debug(msg);
@@ -264,9 +266,21 @@ void initLlama() {
         debug("Model file does not exist!: " + modelPath);
     }
 }
+void createNewFileFunc(const std::string &filename) {
+    std::ofstream out(filename, std::ios::out | std::ios::trunc);
+    if (!out) {
+        throw std::system_error(errno, std::generic_category(), "Failed to create file: " + filename);
+    }
+}
+
 
 int main(int argc, char* argv[]) {
-
+    if (argc <= 1) return 1;
+    std::string_view s{argv[1]};
+    if (s.size() && s[0] == '-') {
+        std::cerr << "No file given! Use arg1 as filename not: " << s << '\n';
+        return 1;
+    }
     std::string debugTTY;
         for (int i = 1; i < argc; i++) {
         if (std::string(argv[i]) == "-d" && i + 1 < argc) {
@@ -285,6 +299,9 @@ int main(int argc, char* argv[]) {
                 modelPath = argv[i + 1];
             }
         }
+        if (std::string(argv[i]) == "--noNewFile") {
+            createNewFile = false;
+        }
     }
     if (!debugTTY.empty()) {
     debugOut.open(debugTTY);
@@ -299,7 +316,17 @@ int main(int argc, char* argv[]) {
     
 
     debug("Editor started");
-    loadFile(argv[1]);
+    if (checkFileExistance(argv[1])){
+        loadFile(argv[1]);
+    }
+    else {
+
+        if (createNewFile == true){
+            createNewFileFunc(argv[1]);
+            loadFile(argv[1]);
+        }
+    }
+    
 
     // Initialize ncurses
     initscr();
