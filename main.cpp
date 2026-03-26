@@ -9,7 +9,7 @@
 #include "headers/LlamaClient.hpp"
 #include <string_view>
 #include <iostream>
-
+#include "headers/networkLlamaApi.hpp"
 
 const std::string version = "0.0.0";
 std::ofstream debugOut;
@@ -368,14 +368,15 @@ int main(int argc, char* argv[]) {
         // Tab completion
     else if (ch == 9) { // Tab Key
         debug("Tab pressed - Triggering AI Completion");
-
+        
         // 1. Capture text from the current line
         std::string txtBefore = "";
         if (cursorY < buffer.size()) {
             txtBefore = buffer[cursorY];
         }
         if (llamaInit == false){
-            initLlama();
+            //initLlama();
+            llamaInit = true;
         }
         // 2. Check if the model is actually loaded
         if (llama.is_ready()) {
@@ -391,6 +392,26 @@ int main(int argc, char* argv[]) {
         } else {
             debug("AI Error: Model not loaded! Check load_model() path.");
         }
+        std::string llamaOutput = llama_completion_content(txtBefore, "http://localhost:8080/completion", "5",
+                                   [](const std::string& msg){ debug(msg); });
+        debug("got output: " + llamaOutput);
+        for (std::size_t i = 0; i < llamaOutput.size(); ++i) {
+            char charLlamaOutput = llamaOutput[i];
+            if (charLlamaOutput >= 32 && charLlamaOutput <= 126) {
+            // Ensure the line is long enough
+            if (cursorX > buffer[cursorY].size()) {
+                buffer[cursorY].resize(cursorX, ' '); // Fill missing spaces
+            }
+
+            // Insert character at cursor position
+            buffer[cursorY].insert(buffer[cursorY].begin() + cursorX, charLlamaOutput);
+
+            cursorX++;
+            unsavedChanges = true;
+        }
+        }
+
+
     }
         // shift + arrow key to select
         else if (ch == 402)
