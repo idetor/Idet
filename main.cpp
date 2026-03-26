@@ -6,10 +6,12 @@
 #include <filesystem>
 #include <chrono>
 #include <ctime>
-#include "headers/LlamaClient.hpp"
 #include <string_view>
 #include <iostream>
+#include "headers/LlamaClient.hpp"
 #include "headers/networkLlamaApi.hpp"
+#include "headers/functions.h"
+
 
 const std::string version = "0.0.0";
 std::ofstream debugOut;
@@ -46,6 +48,7 @@ LlamaClient llama([](const std::string& msg) {
 });
 
 
+
 void loadFile(const std::string& filename) {
     std::ifstream file(filename);
     std::string line;
@@ -58,7 +61,6 @@ void loadFile(const std::string& filename) {
                     + std::chrono::system_clock::now());
     lastModifiedTime = std::chrono::system_clock::to_time_t(sctp); // time_t
 }
-
 void saveFile(const std::string& filename) {
     std::ofstream file(filename);
     for (auto& line : buffer) file << line << "\n";
@@ -71,6 +73,7 @@ void saveFile(const std::string& filename) {
     unsavedChanges = false;
 }
 
+
 void copyClipboard(int startY , int endY){
             for (int y = startY; y <= endY; y++) {
                 int lineStartX = (y == selStartY) ? selStartX : 0;
@@ -80,7 +83,6 @@ void copyClipboard(int startY , int endY){
             }
             debug("copied to clipboard: " + clipboard);
 }
-
 
 void pasteClipboard(int& cursorY, int& cursorX, std::vector<std::string>& buffer) {
     if (clipboard.empty()) return;
@@ -116,6 +118,7 @@ void pasteClipboard(int& cursorY, int& cursorX, std::vector<std::string>& buffer
         }
     }
 }
+
 
 // convert int time into human readable format
 std::string formatTime(int time) {
@@ -378,47 +381,61 @@ int main(int argc, char* argv[]) {
         // Tab completion
     else if (ch == 9) { // Tab Key
         debug("Tab pressed - Triggering AI Completion");
-        
-        // 1. Capture text from the current line
-        std::string txtBefore = "";
-        if (cursorY < buffer.size()) {
-            txtBefore = buffer[cursorY];
+        std::vector<std::string> vectorBeforetxt;
+        vectorBeforetxt.reserve(static_cast<size_t>(cursorY) + 1); // avoid reallocs
+
+        int limitLine = std::max(0, cursorY); // ensure non-negative
+        for (int vecLine = 0; vecLine < limitLine && vecLine < static_cast<int>(buffer.size()); ++vecLine) {
+            vectorBeforetxt.push_back(buffer[vecLine]);
         }
-        if (llamaInit == false){
-            //initLlama();
-            llamaInit = true;
+        std::string charsBefore;
+        if (cursorY >= 0 && cursorY < static_cast<int>(buffer.size())) {
+            int clampX = std::clamp(cursorX, 0, static_cast<int>(buffer[cursorY].size()));
+            charsBefore = buffer[cursorY].substr(0, clampX);
+        } // else charsBefore stays empty
+
+        vectorBeforetxt.push_back(charsBefore);
+
+        // Join with commas
+        std::string StrVecTxt;
+        StrVecTxt.reserve(vectorBeforetxt.size() * 8);
+        for (size_t i = 0; i < vectorBeforetxt.size(); ++i) {
+            if (i) StrVecTxt.push_back(',');
+            StrVecTxt += vectorBeforetxt[i];
         }
-        // 2. Check if the model is actually loaded
-        if (llama.is_ready()) {
-            debug("AI Status: Model is ready. Tokenizing...");
-            debug("completing" + txtBefore);
-            
-            // 3. Call your complete_text method
-            // This will trigger the llama_tokenize and llama_model_get_vocab logic
-            std::string ai_response = llama.complete_text(txtBefore);
-            
-            // 4. Output the result to your debug log
-            debug("AI Result: " + ai_response);
-        } else {
-            debug("AI Error: Model not loaded! Check load_model() path.");
-        }
-        std::string llamaOutput = llama_completion_content(txtBefore, (llamaCompletionHost + "/completion"), llamaCompletionNPredict,
+        debug("vector: " + StrVecTxt);
+        std::string promptText = getStingFromVec(vectorBeforetxt);
+        debug("promptText: " + promptText);
+        std::string llamaOutput = llama_completion_content(promptText, (llamaCompletionHost + "/completion"), llamaCompletionNPredict,
                                    [](const std::string& msg){ debug(msg); });
         debug("got output: " + llamaOutput);
         for (std::size_t i = 0; i < llamaOutput.size(); ++i) {
             char charLlamaOutput = llamaOutput[i];
-            if (charLlamaOutput >= 32 && charLlamaOutput <= 126) {
-            // Ensure the line is long enough
-            if (cursorX > buffer[cursorY].size()) {
-                buffer[cursorY].resize(cursorX, ' '); // Fill missing spaces
+            if (charLlamaOutput == '\n') {
+                // Move cursor to next line
+                cursorY++;
+                // Ensure buffer has enough lines
+                if (cursorY >= buffer.size()) {
+                    buffer.emplace_back("");
+                }
+                cursorX = 0;
+                continue;
             }
+            if (charLlamaOutput >= 32 && charLlamaOutput <= 126) {
+                // Ensure the line exists
+                if (cursorY >= buffer.size()) {
+                    buffer.emplace_back("");
+                }
+                // Ensure the line is long enough
+                if (cursorX > buffer[cursorY].size()) {
+                    buffer[cursorY].resize(cursorX, ' ');
+                }
+                // Insert character at cursor position
+                buffer[cursorY].insert(buffer[cursorY].begin() + cursorX, charLlamaOutput);
 
-            // Insert character at cursor position
-            buffer[cursorY].insert(buffer[cursorY].begin() + cursorX, charLlamaOutput);
-
-            cursorX++;
-            unsavedChanges = true;
-        }
+                cursorX++;
+                unsavedChanges = true;
+            }
         }
 
 
