@@ -52,8 +52,10 @@ std::string llamaCompletionHost = "http://localhost:8080"; //URL of llamacpp
 std::string llamaCompletionNPredict = "5"; // how many tokens to generate with TAB
 const size_t DEBUG_MAX = 10000;
 
+void displayInlineSuggestion(const std::vector<std::string>& inlineBuffer,
+                             int inlineBufferPosX, int inlineBufferPosY,
+                             int cursorX, int cursorY) {
 
-void displayInlineSuggestion(const std::vector<std::string>& inlineBuffer,int inlineBufferPosX, int inlineBufferPosY,int cursorX, int cursorY) {
     int inlineLineY = cursorY;
     int inlineLineX = cursorX;
 
@@ -69,25 +71,10 @@ void displayInlineSuggestion(const std::vector<std::string>& inlineBuffer,int in
                 continue;
             }
 
-            mvaddch(inlineLineY, inlineLineX, c);void displayInlineSuggestion(std::vector<std::string> inlineBuffer , int inlineBufferPosX, int inlineBufferPosY, int cursorX, int cursorY){
-    int inlineLineY = 0;
-    int inlineLineX = 0;
-    for (int charNum = 0; charNum++; charNum < inlineBuffer.size()){
-        inlineLineX = cursorX + charNum;
-        if (inlineBuffer[charNum] == "\n"){
-            inlineLineY++;
-        }
-        attron(COLOR_PAIR(10));
-        mvhline(inlineLineX , inlineLineY, inlineBuffer[charNum]); 
-        attroff();
-
-    }
-
-}
+            mvaddch(inlineLineY, inlineLineX, c);
             inlineLineX++;
         }
 
-        // Move to next line after each string (if needed)
         inlineLineY++;
         inlineLineX = cursorX;
     }
