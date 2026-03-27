@@ -23,5 +23,5 @@ echo "Compiling main.cpp to editor..."
 g++ main.cpp  -lncursesw -lcurl -o idet
     
 chmod a+x idet
-cp idet /usr/local/bin/
+cp -f idet /usr/local/bin/
 echo "Installation complete. Run 'idet' or './idet' to start the editor."
