@@ -6,7 +6,8 @@
 #include <filesystem>
 #include <chrono>
 #include <ctime>
-
+#include <map>
+#include <nlohmann/json.hpp>
 #include <string_view>
 #include <iostream>
 
@@ -52,3 +53,51 @@ std::string getStingFromVec(const std::vector<std::string>& inArray){
     std::string parsedString=joinVecLines(inArray);
     return escapeForJson(parsedString);
 }
+
+using json = nlohmann::json;
+
+class ConfigLoader {
+private:
+    json data;
+
+    json sort_json(const json& input) {
+        if (input.is_object()) {
+            std::map<std::string, json> sorted_map;
+            // Insert into map (automatically sorts keys)
+            for (auto& [key, value] : input.items()) {
+                sorted_map[key] = sort_json(value);
+            }
+            // Convert back to json object
+            json result;
+            for (auto& [key, value] : sorted_map) {
+                result[key] = value;
+            }
+
+            return result;
+        }
+        else if (input.is_array()) {
+            json result = json::array();
+            for (const auto& item : input) {
+                result.push_back(sort_json(item));
+            }
+            return result;
+        }
+        return input; // primitive types
+    }
+public:
+    ConfigLoader(const std::string& filepath) {
+        std::ifstream file(filepath);
+        if (!file.is_open()) {
+            throw std::runtime_error("Could not open config file");
+        }
+        json raw;
+        file >> raw;
+        data = sort_json(raw);
+    }
+    json get() const {
+        return data;
+    }
+    void print() const {
+        std::cout << data.dump(4) << std::endl;
+    }
+};
