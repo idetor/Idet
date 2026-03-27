@@ -12,6 +12,7 @@
 #include <ctime>
 #include <string_view>
 #include <iostream>
+#include <unistd.h>
 //#include "headers/LlamaClient.hpp"
 #include "headers/networkLlamaApi.hpp"
 #include "headers/functions.h"
@@ -52,13 +53,26 @@ std::string llamaCompletionHost = "http://localhost:8080"; //URL of llamacpp
 std::string llamaCompletionNPredict = "5"; // how many tokens to generate with TAB
 int lastEditTime = 0;
 const size_t DEBUG_MAX = 10000;
+bool showInlineSuggestion = false;
+bool inlineSuggestionExists = false;
+int inlineSuggestionNPredict = 5;
+bool allowInlineSuggestion = true;
+bool autoSuggestionTriggered = false;
+const int AUTO_SUGGESTION_DELAY = 3;
+
 
 void displayInlineSuggestion(const std::vector<std::string>& inlineBuffer,
                              int inlineBufferPosX, int inlineBufferPosY,
-                             int cursorX, int cursorY) {
+                             int cursorXFunc, int cursorYFunc, int rowOffset, int colOffset, int lineNumberWidth) {
+                                // Using a template literal – simplest, most readable
+                    //debugWrite("DisplayInlineSuggestion Called with posX: " + std::to_string(inlineBufferPosX) + " and posY: " + std::to_string(inlineBufferPosY));
 
-    int inlineLineY = cursorY;
-    int inlineLineX = cursorX;
+    // Convert file coordinates to screen coordinates
+    int screenCursorY = cursorYFunc - rowOffset + 1;
+    int screenCursorX = lineNumberWidth + (cursorXFunc - colOffset);
+    
+    int inlineLineY = screenCursorY;
+    int inlineLineX = screenCursorX;
 
     attron(COLOR_PAIR(10));
 
@@ -68,16 +82,19 @@ void displayInlineSuggestion(const std::vector<std::string>& inlineBuffer,
 
             if (c == '\n') {
                 inlineLineY++;
-                inlineLineX = cursorX;
+                inlineLineX = screenCursorX;
                 continue;
             }
 
-            mvaddch(inlineLineY, inlineLineX, c);
+            // Bounds checking to avoid drawing outside the window
+            if (inlineLineY >= 0 && inlineLineY < LINES - 1 && inlineLineX >= 0 && inlineLineX < COLS) {
+                mvaddch(inlineLineY, inlineLineX, c);
+            }
             inlineLineX++;
         }
 
         inlineLineY++;
-        inlineLineX = cursorX;
+        inlineLineX = screenCursorX;
     }
 
     attroff(COLOR_PAIR(10));
@@ -386,6 +403,11 @@ if (screenCursorX < lineNumberWidth) screenCursorX = lineNumberWidth;
 if (screenCursorX >= COLS) screenCursorX = COLS - 1;
 move(screenCursorY, screenCursorX);
 
+// Draw inline suggestion if active
+if (showInlineSuggestion && !inlineBuffer.empty()) {
+    displayInlineSuggestion(inlineBuffer, inlineBufferPosX, inlineBufferPosY, cursorX, cursorY, rowOffset, colOffset, lineNumberWidth);
+}
+
 refresh();
 
 }
@@ -432,10 +454,18 @@ std::size_t char_to_byte_index(const std::string &s, std::size_t char_idx) {
 // Removed broken remakeBufferUtf8 function - not needed
 // The buffer already stores UTF-8 strings correctly
 
-std::vector<std::string> generateInlineBuffer(std::string inputBufferString){
-    
+std::vector<std::string> generateInlineBuffer(const std::string& inputBufferString) {
+    std::vector<std::string> outVector;
+    outVector.emplace_back(); // start with first line
 
-
+    for (char currentChar : inputBufferString) {
+        if (currentChar == '\n') {
+            outVector.emplace_back(); // new line
+        } else {
+            outVector.back().push_back(currentChar);
+        }
+    }
+    return outVector;
 }
 
 void getInlineSuggestion(int cursorX, int cursorY){
@@ -465,10 +495,14 @@ void getInlineSuggestion(int cursorX, int cursorY){
         debugWrite("vector: " + StrVecTxt);
         std::string promptText = getStingFromVec(vectorBeforetxt);
         debugWrite("promptText: " + promptText);
-        std::string llamaOutput = llama_completion_content(promptText, (llamaCompletionHost + "/completion"), llamaCompletionNPredict,
+        std::string llamaOutput = llama_completion_content(promptText, (llamaCompletionHost + "/completion"), std::to_string(inlineSuggestionNPredict),
                                    [](const std::string& msg){ debugWrite(msg); });
-        
-        //displayInlineSuggestion(inlineBuffer);
+        debugWrite("LlamaOutput is: " + llamaOutput);
+        // Store inline buffer and set flag to display on next draw
+        inlineBuffer = generateInlineBuffer(llamaOutput);
+        inlineBufferPosX = cursorX + 1;
+        inlineBufferPosY = cursorY;
+        showInlineSuggestion = true;
 }
 
 
@@ -562,11 +596,16 @@ int main(int argc, char* argv[]) {
     raw();
     keypad(stdscr, TRUE);
     noecho();
+    nodelay(stdscr, TRUE);
 
     int cursorX = 0, cursorY = 0;
     int rowOffset = 0;
     int colOffset = 0;
     int ch;
+    
+    // Initialize lastEditTime to current time
+    auto initTime = std::chrono::system_clock::now();
+    lastEditTime = std::chrono::system_clock::to_time_t(initTime);
 
     while (true) {
         // Scroll logic
@@ -576,11 +615,30 @@ int main(int argc, char* argv[]) {
 
         draw(cursorY, cursorX, rowOffset, argv[1], lineNumberScheme, contentScheme, selectionActive, unsavedChanges, colOffset);
 
-        ch = getch();
+        // Check for auto-suggestion trigger after 3 seconds of inactivity
         auto now = std::chrono::system_clock::now();
-        std::time_t timeToTimeNow = std::chrono::system_clock::to_time_t(now);
-        lastEditTime = timeToTimeNow;
-        debugWrite("Key pressed: " + std::to_string(ch));
+        std::time_t timeNow = std::chrono::system_clock::to_time_t(now);
+        int timeSinceLastEdit = static_cast<int>(timeNow - lastEditTime);
+        
+        if (timeSinceLastEdit >= AUTO_SUGGESTION_DELAY && !autoSuggestionTriggered && 
+            !showInlineSuggestion && !inlineSuggestionExists && allowInlineSuggestion) {
+            debugWrite("Auto-triggering inline suggestion after " + std::to_string(timeSinceLastEdit) + " seconds");
+            getInlineSuggestion(cursorX, cursorY);
+            inlineSuggestionExists = true;
+            autoSuggestionTriggered = true;
+        }
+
+        ch = getch();
+        
+        if (ch != ERR) {
+            auto now = std::chrono::system_clock::now();
+            lastEditTime = std::chrono::system_clock::to_time_t(now);
+            autoSuggestionTriggered = false;
+            debugWrite("Key pressed: " + std::to_string(ch));
+        } else {
+            usleep(50000);
+            continue;
+        }
 
         switch (ch) {
             case CTRL_KEY('q'):
@@ -594,61 +652,97 @@ int main(int argc, char* argv[]) {
                 contentScheme    = (contentScheme == 3) ? 4 : 3;
                 break;
             case 9: {
-                debugWrite("Tab pressed - Triggering AI Completion");
-                std::vector<std::string> vectorBeforetxt;
-                vectorBeforetxt.reserve(static_cast<size_t>(cursorY) + 1);
-                int limitLine = std::max(0, cursorY);
-                for (int vecLine = 0; vecLine < limitLine && vecLine < static_cast<int>(buffer.size()); ++vecLine) {
-                    vectorBeforetxt.push_back(buffer[vecLine]);
-                }
-                std::string charsBefore;
-                if (cursorY >= 0 && cursorY < static_cast<int>(buffer.size())) {
-                    int clampX = std::clamp(cursorX, 0, static_cast<int>(buffer[cursorY].size()));
-                    charsBefore = buffer[cursorY].substr(0, clampX);
-                }
-                vectorBeforetxt.push_back(charsBefore);
-                std::string StrVecTxt;
-                StrVecTxt.reserve(vectorBeforetxt.size() * 8);
-                for (size_t i = 0; i < vectorBeforetxt.size(); ++i) {
-                    if (i) StrVecTxt.push_back(',');
-                    StrVecTxt += vectorBeforetxt[i];
-                }
-                debugWrite("vector: " + StrVecTxt);
-                std::string promptText = getStingFromVec(vectorBeforetxt);
-                debugWrite("promptText: " + promptText);
-                std::string llamaOutput = llama_completion_content(promptText,
-                                        (llamaCompletionHost + "/completion"),
-                                        llamaCompletionNPredict,
-                                        [](const std::string& msg){ debugWrite(msg); });
-                debugWrite("got output: " + llamaOutput);
-                for (size_t i = 0; i < llamaOutput.size(); ++i) {
-                    char charLlamaOutput = llamaOutput[i];
-                    if (charLlamaOutput == '\n') {
-                        std::string newLine = buffer[cursorY].substr(cursorX);
-                        buffer[cursorY] = buffer[cursorY].substr(0, cursorX);
-                        buffer.insert(buffer.begin() + cursorY + 1, newLine);
-                        cursorY++;
-                        cursorX = 0;
-                        if (cursorY >= buffer.size()) {
-                            buffer.emplace_back("");
-                        }
-                        cursorX = 0;
-                        continue;
+                if (inlineSuggestionExists == false){
+                    debugWrite("Tab pressed - Triggering AI Completion");
+                    std::vector<std::string> vectorBeforetxt;
+                    vectorBeforetxt.reserve(static_cast<size_t>(cursorY) + 1);
+                    int limitLine = std::max(0, cursorY);
+                    for (int vecLine = 0; vecLine < limitLine && vecLine < static_cast<int>(buffer.size()); ++vecLine) {
+                        vectorBeforetxt.push_back(buffer[vecLine]);
                     }
-                    if (charLlamaOutput >= 32 && charLlamaOutput <= 126) {
-                        if (cursorY >= buffer.size()) {
-                            buffer.emplace_back("");
+                    std::string charsBefore;
+                    if (cursorY >= 0 && cursorY < static_cast<int>(buffer.size())) {
+                        int clampX = std::clamp(cursorX, 0, static_cast<int>(buffer[cursorY].size()));
+                        charsBefore = buffer[cursorY].substr(0, clampX);
+                    }
+                    vectorBeforetxt.push_back(charsBefore);
+                    std::string StrVecTxt;
+                    StrVecTxt.reserve(vectorBeforetxt.size() * 8);
+                    for (size_t i = 0; i < vectorBeforetxt.size(); ++i) {
+                        if (i) StrVecTxt.push_back(',');
+                        StrVecTxt += vectorBeforetxt[i];
+                    }
+                    debugWrite("vector: " + StrVecTxt);
+                    std::string promptText = getStingFromVec(vectorBeforetxt);
+                    debugWrite("promptText: " + promptText);
+                    std::string llamaOutput = llama_completion_content(promptText,
+                                            (llamaCompletionHost + "/completion"),
+                                            llamaCompletionNPredict,
+                                            [](const std::string& msg){ debugWrite(msg); });
+                    debugWrite("got output: " + llamaOutput);
+                    for (size_t i = 0; i < llamaOutput.size(); ++i) {
+                        char charLlamaOutput = llamaOutput[i];
+                        if (charLlamaOutput == '\n') {
+                            std::string newLine = buffer[cursorY].substr(cursorX);
+                            buffer[cursorY] = buffer[cursorY].substr(0, cursorX);
+                            buffer.insert(buffer.begin() + cursorY + 1, newLine);
+                            cursorY++;
+                            cursorX = 0;
+                            if (cursorY >= buffer.size()) {
+                                buffer.emplace_back("");
+                            }
+                            cursorX = 0;
+                            continue;
                         }
-                        if (cursorX > buffer[cursorY].size()) {
-                            buffer[cursorY].resize(cursorX, ' ');
+                        if (charLlamaOutput >= 32 && charLlamaOutput <= 126) {
+                            if (cursorY >= buffer.size()) {
+                                buffer.emplace_back("");
+                            }
+                            if (cursorX > buffer[cursorY].size()) {
+                                buffer[cursorY].resize(cursorX, ' ');
+                            }
+                            buffer[cursorY].insert(buffer[cursorY].begin() + cursorX,
+                                                charLlamaOutput);
+                            cursorX++;
+                            unsavedChanges = true;
                         }
-                        buffer[cursorY].insert(buffer[cursorY].begin() + cursorX,
-                                            charLlamaOutput);
-                        cursorX++;
+                    }
+                    break;
+                }
+                else{
+                    // Accept inline Suggestion
+                    debugWrite("Accepting inline suggestion");
+                    if (!inlineBuffer.empty()) {
+                        // Insert inline buffer content into the buffer
+                        for (size_t i = 0; i < inlineBuffer.size(); ++i) {
+                            const std::string& line = inlineBuffer[i];
+                            
+                            if (i == 0) {
+                                // First line - insert at current cursor position
+                                if (cursorY >= buffer.size()) {
+                                    buffer.emplace_back("");
+                                }
+                                if (cursorX > buffer[cursorY].size()) {
+                                    buffer[cursorY].resize(cursorX, ' ');
+                                }
+                                buffer[cursorY].insert(cursorX, line);
+                                cursorX += line.size();
+                            } else {
+                                // Subsequent lines - create new lines
+                                std::string restOfLine = buffer[cursorY].substr(cursorX);
+                                buffer[cursorY] = buffer[cursorY].substr(0, cursorX);
+                                cursorY++;
+                                buffer.insert(buffer.begin() + cursorY, line + restOfLine);
+                                cursorX = line.size();
+                            }
+                        }
                         unsavedChanges = true;
                     }
+                    showInlineSuggestion = false;
+                    inlineSuggestionExists = false;
+                    inlineBuffer.clear();
+                    break;
                 }
-                break;
             }
             case 402: {
                 debugWrite("shift + arrow right");
@@ -665,6 +759,11 @@ int main(int argc, char* argv[]) {
             case 544:
                 cursorX = 0;
                 cursorY = 0;
+                break;
+            case KEY_F(7):
+
+                getInlineSuggestion(cursorX, cursorY); 
+                inlineSuggestionExists = true;
                 break;
             case 539:
                 if (!buffer.empty()) {
@@ -720,6 +819,8 @@ int main(int argc, char* argv[]) {
                 }
                 break;
             case CTRL_KEY('v'):
+                showInlineSuggestion = false;
+                inlineSuggestionExists = false;
                 if (!clipboard.empty()) {
                     pasteClipboard(cursorY, cursorX, buffer);
                     debugWrite("Pasted from clipboard at (" +
@@ -728,6 +829,8 @@ int main(int argc, char* argv[]) {
                 }
                 break;
             case CTRL_KEY('k'):
+                showInlineSuggestion = false;
+                inlineSuggestionExists = false;
                 if (cursorY < static_cast<int>(buffer.size())) {
                     buffer.erase(buffer.begin() + cursorY);
                     if (cursorY >= static_cast<int>(buffer.size())) cursorY = buffer.size() - 1;
@@ -741,12 +844,18 @@ int main(int argc, char* argv[]) {
                 break;
             case KEY_UP:
                 if (cursorY > 0) cursorY--;
+                showInlineSuggestion = false;
+                inlineSuggestionExists = false;
                 break;
             case KEY_DOWN:
                 if (cursorY < static_cast<int>(buffer.size()) - 1) cursorY++;
+                showInlineSuggestion = false;
+                inlineSuggestionExists = false;
                 break;
             case KEY_LEFT:
                 if (cursorX > 0) cursorX--;
+                showInlineSuggestion = false;
+                inlineSuggestionExists = false;
                 break;
             case KEY_RIGHT: {
                 int charCount = 0;
@@ -761,10 +870,14 @@ int main(int argc, char* argv[]) {
                     charCount++;
                 }
                 if (cursorX < charCount) cursorX++;
+                showInlineSuggestion = false;
+                inlineSuggestionExists = false;
                 break;
             }
             case KEY_HOME:
                 cursorX = 0;
+                showInlineSuggestion = false;
+                inlineSuggestionExists = false;
                 break;
             case KEY_END: {
                 int charCount = 0;
@@ -779,9 +892,13 @@ int main(int argc, char* argv[]) {
                     charCount++;
                 }
                 cursorX = charCount;
+                showInlineSuggestion = false;
+                inlineSuggestionExists = false;
                 break;
             }
             case 10: {
+                showInlineSuggestion = false;
+                inlineSuggestionExists = false;
                 std::size_t bytePos = char_to_byte_index(buffer[cursorY], cursorX);
                 std::string newLine = buffer[cursorY].substr(bytePos);
                 buffer[cursorY] = buffer[cursorY].substr(0, bytePos);
@@ -792,6 +909,8 @@ int main(int argc, char* argv[]) {
             }
             case KEY_BACKSPACE:
             case 127: {
+                showInlineSuggestion = false;
+                inlineSuggestionExists = false;
                 if (cursorX > 0) {
                     std::size_t bytePos = char_to_byte_index(buffer[cursorY], cursorX);
                     std::size_t prevBytePos = char_to_byte_index(buffer[cursorY], cursorX - 1);
@@ -838,6 +957,8 @@ int main(int argc, char* argv[]) {
                     buffer[cursorY].insert(bytePos, utf8_char);
                     cursorX += 1;
                     unsavedChanges = true;
+                    showInlineSuggestion = false;
+                    inlineSuggestionExists = false;
                     break;
                 }
                 if (ch >= 32 && ch <= 126) {
@@ -848,6 +969,8 @@ int main(int argc, char* argv[]) {
                     buffer[cursorY].insert(bytePos, 1, static_cast<char>(ch));
                     cursorX += 1;
                     unsavedChanges = true;
+                    showInlineSuggestion = false;
+                    inlineSuggestionExists = false;
                     break;
                 }
                 break;
@@ -855,12 +978,12 @@ int main(int argc, char* argv[]) {
         }
 
 
-                // Update selection end
-                if (selectionActive) {
-                    selEndY = cursorY;
-                    selEndX = cursorX;
-                }
-            }
+        // Update selection end
+        if (selectionActive) {
+            selEndY = cursorY;
+            selEndX = cursorX;
+        }
+    }
 
     endwin();
     return 0;
