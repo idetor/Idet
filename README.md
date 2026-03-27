@@ -2,23 +2,22 @@
 Simple terminal text editor.
 
 # Installation
-For Ai-Completions(currently unavaiable) you need to install llama.cpp.\
-Get llama.cpp via: https://github.com/ggml-org/llama.cpp
-
+Install via the installer:
+```bash
+sudo chmod a+x ./installer.sh
+./installer.sh
+```
+Manual install:\
 Install dependencies:
 ```bash
 sudo apt install libncurses-dev
 sudo apt install libcurl4-openssl-dev
 sudo apt install nlohmann-json3-dev
+sudo apt install g++
 ```
-With llama.cpp:\
-Replace the placeholders and run the compiler command:
+Compile:
 ```bash
-g++ main.cpp src/LlamaClient.cpp -I./headers -I"<path-to-llama.cpp>/include" -L"<path-to-llama.cpp>" -lllama -lncurses -lcurl -o editor
-```
-Without llama.cpp:
-```bash
- g++ main.cpp  -lncurses -lcurl -o editor
+g++ main.cpp  -lncurses -lcurl -o editor
 ```
 
 

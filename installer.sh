@@ -18,49 +18,10 @@ apt install -y cmake
 
 git pull
 
-while true; do
-    read -p "Install with llama.cpp? (y/n) " -n 1 -r
-    echo
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-        while true; do
-            read -p "Do you have llama.cpp installed? (y/n) " -n 1 -r
-            echo
-            if [[ $REPLY =~ ^[Yy]$ ]]; then
-                read -p "Enter the path to llama.cpp: " -r
-                LLAMA_PATH="$REPLY"
-                break
-            elif [[ $REPLY =~ ^[Nn]$ ]]; then
-                echo "Installing llama.cpp."
-                git clone https://github.com/ggml-org/llama.cpp.git
-        
-                LLAMA_PATH="$SCRIPT_DIR/llama.cpp"
-                cd llama.cpp
-                git pull
-                cmake -B build
-                cmake --build build --config Release
-        
-                echo "llama.cpp installed"
-                cd ..
-                break
-            else
-                echo "Please enter y or n."
-            fi
-        done
-        echo "Compiling main.cpp to editor with llama.cpp..."
-        g++ main.cpp src/LlamaClient.cpp -I./headers -I"$LLAMA_PATH/include" -L"$LLAMA_PATH" -lllama -lncurses -lcurl -o editor
-        chmod a+x editor
-        echo "Installation complete. Run './editor' to start the editor."
-        exit 0
-    elif [[ $REPLY =~ ^[Nn]$ ]]; then
-        echo "Skipping llama.cpp installation."
-        echo "Compiling main.cpp to editor..."
+echo "Compiling main.cpp to editor..."
     
-        g++ main.cpp  -lncurses -lcurl -o editor
+g++ main.cpp  -lncurses -lcurl -o editor
     
-        chmod a+x editor
-        echo "Installation complete. Run './editor' to start the editor."
-        exit 0
-    else
-        echo "Please enter y or n."
-    fi
-done
+chmod a+x editor
+echo "Installation complete. Run './editor' to start the editor."
+
