@@ -20,8 +20,8 @@ git pull
 
 echo "Compiling main.cpp to editor..."
     
-g++ main.cpp  -lncursesw -lcurl -o editor
+g++ main.cpp  -lncursesw -lcurl -o idet
     
-chmod a+x editor
-echo "Installation complete. Run './editor' to start the editor."
-
+chmod a+x idet
+cp idet /usr/local/bin/
+echo "Installation complete. Run 'idet' or './idet' to start the editor."
