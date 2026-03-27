@@ -1,3 +1,7 @@
+#include <locale.h>
+#include <cwchar>
+#include <vector>
+#include <string>
 #include <ncurses.h>
 
 #include <fstream>
@@ -46,6 +50,21 @@ std::string llamaCompletionHost = "http://localhost:8080"; //URL of llamacpp
 std::string llamaCompletionNPredict = "5"; // how many tokens to generate with TAB
 const size_t DEBUG_MAX = 10000;
 
+
+static std::wstring utf8_to_wstring(const std::string &s) {
+    if (s.empty()) return L"";
+    std::mbstate_t state = std::mbstate_t();
+    const char *src = s.c_str();
+    // Bestimme Länge
+    size_t len = std::mbsrtowcs(nullptr, &src, 0, &state);
+    if (len == (size_t)-1) return L"";
+    std::wstring w;
+    w.resize(len);
+    src = s.c_str();
+    std::mbsrtowcs(&w[0], &src, len, &state);
+    return w;
+}
+
 void debugWrite(std::ofstream& out, const std::string& msg) {
     if (!out.is_open()) return;
 
@@ -55,10 +74,6 @@ void debugWrite(std::ofstream& out, const std::string& msg) {
         out << msg.substr(0, DEBUG_MAX);
     }
 }
-// init global llama
-//LlamaClient llama([](const std::string& msg) {
-//    debugWrite(msg);
-//});
 
 bool checkFileExistance(const std::string& filePath) {
     std::ifstream file(filePath);
@@ -71,6 +86,7 @@ void createNewFileFunc(const std::string &filename) {
         throw std::system_error(errno, std::generic_category(), "Failed to create file: " + filename);
     }
 }
+
 void loadFile(const std::string& filename) {
     if (!checkFileExistance(filename)) {
         debugWrite("file does not exist");
@@ -105,6 +121,7 @@ void loadFile(const std::string& filename) {
         lastModifiedTime = 0;
     }
 }
+
 void saveFile(const std::string& filename ) {
     //createNewFileFunc(filename);
     if (checkFileExistance(filename) == false){
@@ -120,7 +137,6 @@ void saveFile(const std::string& filename ) {
     lastModifiedTime = std::chrono::system_clock::to_time_t(sctp); // time_t
     unsavedChanges = false;
 }
-
 
 void copyClipboard(int startY , int endY){
             for (int y = startY; y <= endY; y++) {
@@ -167,8 +183,6 @@ void pasteClipboard(int& cursorY, int& cursorX, std::vector<std::string>& buffer
     }
 }
 
-
-// convert int time into human readable format
 std::string formatTime(int time) {
     time_t t = time;
     struct tm* tm_info = localtime(&t);
@@ -189,7 +203,6 @@ std::string getWordSelectionRight(const std::string rightString) {
 
     return wordRight; 
 }
-
 
 void showHelp() {
     erase();  // clear the screen
@@ -224,10 +237,8 @@ std::string subtractStringLeft(const std::string fullString, int subtraction) {
     return fullString.substr(subtraction);
 }
 
-void draw(int cursorY, int cursorX, int& rowOffset, const std::string& filename,
-          int lineNumberScheme, int contentScheme, bool selectionActive,
-          bool unsavedChanges, int& colOffset) {
-
+void draw(int cursorY, int cursorX, int& rowOffset, const std::string& filename,int lineNumberScheme, int contentScheme, bool selectionActive,bool unsavedChanges, int& colOffset) 
+{
 erase();
 
 int lineNumberWidth = std::to_string(buffer.size()).length() + 2;
@@ -235,10 +246,8 @@ int maxRows = LINES - 2; // leave last line for status bar
 int visibleWidth = COLS - lineNumberWidth;
 if (visibleWidth < 1) visibleWidth = 1;
 
-// Ensure cursorY in range
 if (cursorY < 0) cursorY = 0;
 if (cursorY >= (int)buffer.size()) cursorY = (int)buffer.size() - 1;
-// --- VERTICAL SCROLLING: update rowOffset to ensure cursor visible ---
 if (cursorY < rowOffset) {
     rowOffset = cursorY;
 } else if (cursorY >= rowOffset + maxRows) {
@@ -246,10 +255,8 @@ if (cursorY < rowOffset) {
 }
 if (rowOffset < 0) rowOffset = 0;
 
-// Clamp rowOffset so we don't scroll past end of buffer
 int maxRowOffset = std::max(0, (int)buffer.size() - maxRows);
 if (rowOffset > maxRowOffset) rowOffset = maxRowOffset;
-// Clamp cursorX to current line length (allowing position at end)
 if (cursorX < 0) cursorX = 0;
 int lineLen = (cursorY >= 0 && cursorY < (int)buffer.size()) ? (int)buffer[cursorY].size() : 0;
 if (cursorX > lineLen) cursorX = lineLen;
@@ -269,44 +276,44 @@ if (colOffset > maxColOffset) colOffset = maxColOffset;
 
 // --- HEADER ---
 attron(A_BOLD);
-mvhline(0, 0, ' ', COLS); // fill header background
+mvhline(0, 0, ' ', COLS); 
 mvprintw(0, 0, "Idet-Editor - File: %s%s | Selection: %s",
          filename.c_str(),
          unsavedChanges ? "*" : "",
          selectionActive ? "ON" : "OFF");
 attroff(A_BOLD);
-
-// Determine selection range
 int selTop = std::min(selStartY, selEndY);
 int selBottom = std::max(selStartY, selEndY);
-
+static std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
 for (int i = 0; i < maxRows && (rowOffset + i) < (int)buffer.size(); ++i) {
     int fileLine = rowOffset + i;
 
     // --- LINE NUMBERS ---
     attron(COLOR_PAIR(lineNumberScheme));
-    mvhline(i + 1, 0, ' ', lineNumberWidth); // fill column background
+    mvhline(i + 1, 0, ' ', lineNumberWidth); 
     mvprintw(i + 1, 0, "%*d", lineNumberWidth - 1, fileLine + 1);
     attroff(COLOR_PAIR(lineNumberScheme));
 
     // --- FILE CONTENT BACKGROUND ---
     attron(COLOR_PAIR(contentScheme));
-    mvhline(i + 1, lineNumberWidth, ' ', COLS - lineNumberWidth); // fill content background
+    mvhline(i + 1, lineNumberWidth, ' ', COLS - lineNumberWidth); 
     attroff(COLOR_PAIR(contentScheme));
 
     if (fileLine >= (int)buffer.size()) continue;
     std::string& line = buffer[fileLine];
 
-    // Determine visible substring range based on colOffset
-    int startX = colOffset;
-    int endX = std::min((int)line.size(), colOffset + visibleWidth);
+    // 🔹 Convert UTF-8 → wide string
+    std::wstring wline = converter.from_bytes(line);
 
-    // If the visible region is empty, continue (or draw spaces)
+    int startX = colOffset;
+    int endX = std::min((int)wline.size(), colOffset + visibleWidth);
+
     if (startX >= endX) continue;
 
     for (int x = startX; x < endX; ++x) {
         int screenX = lineNumberWidth + (x - colOffset);
         bool inSelection = false;
+
         if (selectionActive) {
             if (fileLine > selTop && fileLine < selBottom) inSelection = true;
             else if (fileLine == selTop && fileLine == selBottom)
@@ -320,7 +327,8 @@ for (int i = 0; i < maxRows && (rowOffset + i) < (int)buffer.size(); ++i) {
         attron(COLOR_PAIR(contentScheme));
         if (inSelection) attron(A_REVERSE);
 
-        mvaddch(i + 1, screenX, line[x]);
+        // 🔹 Print ONE wide character
+        mvaddnwstr(i + 1, screenX, &wline[x], 1);
 
         if (inSelection) attroff(A_REVERSE);
         attroff(COLOR_PAIR(contentScheme));
@@ -349,10 +357,6 @@ refresh();
 
 }
 
-
-
-
-
 void initLlama() {
     
     //modelLoaded = llama.load_model(modelPath);
@@ -378,6 +382,37 @@ void remove_at(char *buf, int pos) {
     }
 }
 
+std::size_t char_to_byte_index(const std::string &s, std::size_t char_idx) {
+    std::size_t bytes = 0, chars = 0;
+    while (bytes < s.size() && chars < char_idx) {
+        unsigned char c = static_cast<unsigned char>(s[bytes]);
+        if ((c & 0x80) == 0) bytes += 1;
+        else if ((c & 0xE0) == 0xC0) bytes += 2;
+        else if ((c & 0xF0) == 0xE0) bytes += 3;
+        else if ((c & 0xF8) == 0xF0) bytes += 4;
+        else return bytes; // invalid byte -> stop
+        ++chars;
+    }
+    return bytes;
+}
+
+void remakeBufferUtf8(std::vector<std::string>& buffer) {
+    std::vector<std::string> newBuffer;
+    
+    
+    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
+
+    for (auto& str : buffer) {
+        
+        std::wstring wideStr(str.begin(), str.end());
+        
+        
+        std::string utf8Str = converter.to_bytes(wideStr);
+        newBuffer.push_back(utf8Str);
+    }
+
+    buffer = newBuffer; // Replace old buffer
+}
 
 int main(int argc, char* argv[]) {
     if (argc <= 1) return 1;
@@ -387,6 +422,7 @@ int main(int argc, char* argv[]) {
         return 1;
     }
     std::string debugTTY;
+    // check the args
         for (int i = 1; i < argc; i++) {
         if (std::string(argv[i]) == "-d" && i + 1 < argc) {
             debugTTY = argv[i + 1];
@@ -438,14 +474,6 @@ int main(int argc, char* argv[]) {
     else {
         debugWrite("No config file found");
     }
-
-
-    //LlamaClient llama([](const std::string& msg) {
-    //debugWrite(msg);
-    //});
-
-    
-
     debugWrite("Editor started");
     if (checkFileExistance(argv[1])){
         loadFile(argv[1]);
@@ -458,7 +486,6 @@ int main(int argc, char* argv[]) {
         }
     }
     
-
     // Initialize ncurses
     initscr();
     start_color();
@@ -498,7 +525,7 @@ int main(int argc, char* argv[]) {
             contentScheme    = (contentScheme == 3) ? 4 : 3;
         }
         // Tab completion
-    else if (ch == 9) { // Tab Key
+        else if (ch == 9) { // Tab Key
         debugWrite("Tab pressed - Triggering AI Completion");
         std::vector<std::string> vectorBeforetxt;
         vectorBeforetxt.reserve(static_cast<size_t>(cursorY) + 1); // avoid reallocs
@@ -576,7 +603,6 @@ int main(int argc, char* argv[]) {
 
             debugWrite("OnRight is: " + onRight);
         }
-        
         // Show Help
         else if (ch == KEY_F(1)) {
             showHelp();
@@ -693,9 +719,12 @@ int main(int argc, char* argv[]) {
             int newch = getch();
             debugWrite("NEWCH: " + newch);
                 if (newch == 164){
-                    
-                    const char* s = u8"Ä";            // in UTF‑8: 2 Bytes (0xC3 0x84)
-                    buffer[cursorY].insert(buffer[cursorY].begin() + cursorX, s, s + std::strlen(s));
+                    remakeBufferUtf8(buffer);
+                    std::size_t bytePos = char_to_byte_index(buffer[cursorY], cursorX);
+                    buffer[cursorY].insert(bytePos, u8"ä");
+
+                    std::string joined = std::accumulate(buffer.begin(), buffer.end(), std::string());
+                    debugWrite("buffer:" + joined);
                 }
             cursorX++;
             unsavedChanges = true;
