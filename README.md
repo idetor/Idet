@@ -8,6 +8,8 @@ Get llama.cpp via: https://github.com/ggml-org/llama.cpp
 Install dependencies:
 ```bash
 sudo apt install libncurses-dev
+sudo apt install libcurl4-openssl-dev
+sudo apt install nlohmann-json3-dev
 ```
 With llama.cpp:\
 Replace the placeholders and run the compiler command:
