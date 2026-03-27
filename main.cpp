@@ -541,6 +541,18 @@ int main(int argc, char* argv[]) {
                 authToken = argv[i + 1]; 
             }
         }
+        if (i + 1 < argc &&
+            (std::string_view(argv[i]) == "-i" || std::string_view(argv[i]) == "--inline"))
+        {
+            // Convert the next argument to an integer
+            try {
+                inlineSuggestionNPredict = std::stoi(argv[i + 1]);  // throws if not numeric
+            } catch (const std::invalid_argument&) {
+                // handle “not a number” error
+            } catch (const std::out_of_range&) {
+                // handle “too large” error
+            }
+        }
         if (std::string(argv[i]) == "-h" || std::string(argv[i]) == "--host") {
             if (argv[i+1][0] == 'h' || argv[i+1][1] == 't'){
                 llamaCompletionHost = argv[i + 1];
