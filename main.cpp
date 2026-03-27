@@ -35,6 +35,9 @@ void debugWrite(const std::string& msg) {
 // init Vars
 int lastModifiedTime = 0;
 std::vector<std::string> buffer;
+std::vector<std::string> inlineBuffer;
+int inlineBufferPosX = 0;
+int inlineBufferPosY = 0;
 bool selectionActive = false;
 int selStartY = 0, selStartX = 0;
 int selEndY = 0, selEndX = 0;
@@ -52,6 +55,36 @@ std::string llamaCompletionHost = "http://localhost:8080"; //URL of llamacpp
 std::string llamaCompletionNPredict = "5"; // how many tokens to generate with TAB
 const size_t DEBUG_MAX = 10000;
 
+
+void displayInlineSuggestion(const std::vector<std::string>& inlineBuffer,
+                             int inlineBufferPosX, int inlineBufferPosY,
+                             int cursorX, int cursorY) {
+    int inlineLineY = cursorY;
+    int inlineLineX = cursorX;
+
+    attron(COLOR_PAIR(10));
+
+    for (size_t i = 0; i < inlineBuffer.size(); i++) {
+        for (size_t j = 0; j < inlineBuffer[i].size(); j++) {
+            char c = inlineBuffer[i][j];
+
+            if (c == '\n') {
+                inlineLineY++;
+                inlineLineX = cursorX;
+                continue;
+            }
+
+            mvaddch(inlineLineY, inlineLineX, c);
+            inlineLineX++;
+        }
+
+        // Move to next line after each string (if needed)
+        inlineLineY++;
+        inlineLineX = cursorX;
+    }
+
+    attroff(COLOR_PAIR(10));
+}
 
 static std::wstring utf8_to_wstring(const std::string &s) {
     if (s.empty()) return L"";
@@ -486,6 +519,8 @@ int main(int argc, char* argv[]) {
     init_pair(2, COLOR_WHITE, COLOR_BLUE);   // alternate line numbers
     init_pair(3, COLOR_WHITE, COLOR_BLACK);  // content default
     init_pair(4, COLOR_YELLOW, COLOR_BLACK); // alternate content
+
+    init_pair(10, COLOR_CYAN, COLOR_BLUE);
 
     raw();
     keypad(stdscr, TRUE);
