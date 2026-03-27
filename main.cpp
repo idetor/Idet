@@ -1,4 +1,5 @@
 #include <ncurses.h>
+
 #include <fstream>
 #include <vector>
 #include <string>
@@ -59,21 +60,56 @@ void debugWrite(std::ofstream& out, const std::string& msg) {
 //    debugWrite(msg);
 //});
 
+bool checkFileExistance(const std::string& filePath) {
+    std::ifstream file(filePath);
+    return file.good();
+}
 
-
+void createNewFileFunc(const std::string &filename) {
+    std::ofstream out(filename, std::ios::out | std::ios::trunc);
+    if (!out) {
+        throw std::system_error(errno, std::generic_category(), "Failed to create file: " + filename);
+    }
+}
 void loadFile(const std::string& filename) {
+    if (!checkFileExistance(filename)) {
+        debugWrite("file does not exist");
+        buffer.clear();
+        buffer.emplace_back();
+        lastModifiedTime = 0;
+        return;
+    }
+
     std::ifstream file(filename);
+    if (!file) {
+        buffer.clear();
+        lastModifiedTime = 0;
+        return;
+    }
+
+    buffer.clear();
     std::string line;
-    while (std::getline(file, line)) buffer.push_back(line);
+    while (std::getline(file, line)) {
+        buffer.push_back(line);
+    }
     if (buffer.empty()) buffer.push_back("");
 
-    auto ftime = std::filesystem::last_write_time(filename);
-    auto sctp = std::chrono::time_point_cast<std::chrono::system_clock::duration>(
-                    ftime - decltype(ftime)::clock::now()
-                    + std::chrono::system_clock::now());
-    lastModifiedTime = std::chrono::system_clock::to_time_t(sctp); // time_t
+    try {
+        auto ftime = std::filesystem::last_write_time(filename);
+        auto sctp = std::chrono::time_point_cast<std::chrono::system_clock::duration>(
+            ftime - decltype(ftime)::clock::now()
+            + std::chrono::system_clock::now()
+        );
+        lastModifiedTime = std::chrono::system_clock::to_time_t(sctp);
+    } catch (...) {
+        lastModifiedTime = 0;
+    }
 }
-void saveFile(const std::string& filename) {
+void saveFile(const std::string& filename ) {
+    //createNewFileFunc(filename);
+    if (checkFileExistance(filename) == false){
+        createNewFileFunc(filename);
+    }
     std::ofstream file(filename);
     for (auto& line : buffer) file << line << "\n";
     
@@ -315,10 +351,7 @@ refresh();
 
 
 
-bool checkFileExistance(const std::string& filePath) {
-    std::ifstream file(filePath);
-    return file.good();
-}
+
 
 void initLlama() {
     
@@ -335,12 +368,7 @@ void initLlama() {
     //    debugWrite("Model file does not exist!: " + modelPath);
     //}
 }
-void createNewFileFunc(const std::string &filename) {
-    std::ofstream out(filename, std::ios::out | std::ios::trunc);
-    if (!out) {
-        throw std::system_error(errno, std::generic_category(), "Failed to create file: " + filename);
-    }
-}
+
 void remove_at(char *buf, int pos) {
     if (pos < 0) return;
     int i = pos;
@@ -425,7 +453,7 @@ int main(int argc, char* argv[]) {
     else {
 
         if (createNewFile == true){
-            createNewFileFunc(argv[1]);
+            //createNewFileFunc(argv[1]);
             loadFile(argv[1]);
         }
     }
@@ -659,6 +687,18 @@ int main(int argc, char* argv[]) {
                 buffer.erase(buffer.begin() + cursorY);
                 cursorY--;
             }
+        }
+        else if (ch == 195) {
+            if (cursorX > buffer[cursorY].size()) {
+                buffer[cursorY].resize(cursorX, ' '); // Fill missing spaces
+            }
+
+            // Insert character at cursor position
+            char spChar = 'Ä' ;
+            buffer[cursorY].insert(buffer[cursorY].begin() + cursorX, spChar);
+
+            cursorX++;
+            unsavedChanges = true;
         }
         // Printable characters
         else if (ch >= 32 && ch <= 126) {
