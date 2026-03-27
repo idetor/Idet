@@ -334,7 +334,14 @@ void createNewFileFunc(const std::string &filename) {
         throw std::system_error(errno, std::generic_category(), "Failed to create file: " + filename);
     }
 }
-
+void remove_at(char *buf, int pos) {
+    if (pos < 0) return;
+    int i = pos;
+    while (buf[i] != '\0') {
+        buf[i] = buf[i+1];
+        i++;
+    }
+}
 
 
 int main(int argc, char* argv[]) {
@@ -375,6 +382,7 @@ int main(int argc, char* argv[]) {
                 llamaCompletionHost = "http://";
                 llamaCompletionHost.append(argv[i + 1]);
             }
+            debug("using llamaCompletionHost: " + llamaCompletionHost);
         }
         if (std::string(argv[i]) == "-n" || std::string(argv[i]) == "--npredict") {
             llamaCompletionNPredict = argv[i];
@@ -530,7 +538,38 @@ int main(int argc, char* argv[]) {
         else if (ch == KEY_F(1)) {
             showHelp();
         }
-
+        // strg pos1
+        else if (ch == 544) {
+            cursorX = 0;
+            cursorY = 0;
+        }
+        //strg end
+        else if (ch == 539) {
+            if (!buffer.empty()) {
+                cursorY = static_cast<int>(buffer.size() - 1);
+                cursorX = static_cast<int>(buffer.back().size());
+            } else {
+                cursorY = 0;
+                cursorX = 0;
+            }
+        }
+        //enf
+        else if (ch == 330) {
+            if (cursorY >= 0 && cursorY < (int)buffer.size()) {
+                std::string &line = buffer[cursorY];
+                int len = (int)line.size();
+                // If this key is Backspace (remove char before cursor):
+                if (cursorX > 0 && cursorX <= len) {
+                    line.erase(cursorX - 1, 1);
+                    --cursorX;
+                }
+                // If this key is Delete (remove char at cursor):
+                else if (cursorX >= 0 && cursorX < len) {
+                    line.erase(cursorX, 1);
+                    // cursorX unchanged
+                }
+            }
+        }
         // Toggle selection
         else if (ch == KEY_F(3)) {
             if (!selectionActive) {
@@ -542,6 +581,14 @@ int main(int argc, char* argv[]) {
                 selectionActive = false;
                 debug("Selection ended at (" + std::to_string(selEndY) + "," + std::to_string(selEndX) + ")");
             }
+        }
+        else if (ch == 1) {
+            selectionActive = true;
+            selStartX = 0;
+            selStartY = 0;
+            selEndX = buffer[buffer.size()].size();
+            selEndY = buffer.size();
+            debug("Selection started at (" + std::to_string(selStartY) + "," + std::to_string(selStartX) + ")");
         }
         // Copy
         else if (ch == CTRL_KEY('c') && selectionActive) {

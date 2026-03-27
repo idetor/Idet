@@ -33,7 +33,7 @@ std::string llama_completion(const std::string& prompt,
     std::string json = ss.str();
     struct curl_slist* headers = NULL;
     headers = curl_slist_append(headers, "Content-Type: application/json");
-
+    logger(std::string("curlOpt URL: ") + curlOptUrl);
     curl_easy_setopt(curl, CURLOPT_URL, curlOptUrl.c_str());
     curl_easy_setopt(curl, CURLOPT_POST, 1L);
     curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
