@@ -17,7 +17,7 @@ without direct Llama
 ```bash
  g++ main.cpp  -lncurses -lcurl -o editor
 ```
-### Made with Love by Laurens Emanuel Reisinger
+
 
 #### Inspired by the Legendary Tedi editor
 ###### Tedi editor by Micheal Niederle: https://github.com/funkylang/funky_beta
