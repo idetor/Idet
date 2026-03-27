@@ -14,7 +14,7 @@
 #include <iostream>
 #include <unistd.h>
 //#include "headers/LlamaClient.hpp"
-#include "headers/networkLlamaApi.hpp"
+#include "headers/networkAIApi.hpp"
 #include "headers/functions.h"
 
 
@@ -59,7 +59,7 @@ int inlineSuggestionNPredict = 5;
 bool allowInlineSuggestion = true;
 bool autoSuggestionTriggered = false;
 const int AUTO_SUGGESTION_DELAY = 3;
-
+std::string AiProvider = "llamacpp";
 
 void displayInlineSuggestion(const std::vector<std::string>& inlineBuffer,
                              int inlineBufferPosX, int inlineBufferPosY,
@@ -495,8 +495,8 @@ void getInlineSuggestion(int cursorX, int cursorY){
         debugWrite("vector: " + StrVecTxt);
         std::string promptText = getStingFromVec(vectorBeforetxt);
         debugWrite("promptText: " + promptText);
-        std::string llamaOutput = llama_completion_content(promptText, (llamaCompletionHost + "/olla/llamacpp/v1/completions"), std::to_string(inlineSuggestionNPredict),
-                                   [](const std::string& msg){ debugWrite(msg); });
+        std::string llamaOutput = AiCompletion(promptText, (llamaCompletionHost), std::to_string(inlineSuggestionNPredict),
+                                   [](const std::string& msg){ debugWrite(msg); }, AiProvider);
         debugWrite("LlamaOutput is: " + llamaOutput);
         // Store inline buffer and set flag to display on next draw
         inlineBuffer = generateInlineBuffer(llamaOutput);
@@ -530,6 +530,10 @@ int main(int argc, char* argv[]) {
         if (std::string(argv[i]) == "-v" || std::string(argv[i]) == "--version") {
             printf("Version %s\n", version.c_str());
             return 0;
+        }
+        if (std::string(argv[i]) == "-p" || std::string(argv[i]) == "--provider") {
+            
+            AiProvider = argv[i + 1];
         }
         if (std::string(argv[i]) == "-m" || std::string(argv[i]) == "--model") {
             if (argv[i + 1]){
@@ -687,10 +691,10 @@ int main(int argc, char* argv[]) {
                     debugWrite("vector: " + StrVecTxt);
                     std::string promptText = getStingFromVec(vectorBeforetxt);
                     debugWrite("promptText: " + promptText);
-                    std::string llamaOutput = llama_completion_content(promptText,
-                                            (llamaCompletionHost + "/olla/llamacpp/v1/completions"),
+                    std::string llamaOutput = AiCompletion(promptText,
+                                            (llamaCompletionHost),
                                             llamaCompletionNPredict,
-                                            [](const std::string& msg){ debugWrite(msg); });
+                                            [](const std::string& msg){ debugWrite(msg); }, AiProvider);
                     debugWrite("got output: " + llamaOutput);
                     for (size_t i = 0; i < llamaOutput.size(); ++i) {
                         char charLlamaOutput = llamaOutput[i];
