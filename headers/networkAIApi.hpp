@@ -234,6 +234,7 @@ std::string AiCompletion(const std::string& prompt,
             std::string ipAddress = getIpAddressOfString(curlOptUrl, logger);
             curlOptUrl = ("http://" + ipAddress + ":11434/api/generate");
             logger("Constructed new CurlOptUrl: " + curlOptUrl);
+            logger("nPredict: " + nPredict);
             ollama_completion_content(prompt,curlOptUrl,nPredict,logger,ollamaModel);
         }
 

@@ -601,13 +601,18 @@ int main(int argc, char* argv[]) {
             debugWrite("using llamaCompletionHost: " + llamaCompletionHost);
         }
         if (std::string(argv[i]) == "-n" || std::string(argv[i]) == "--npredict") {
-            llamaCompletionNPredict = argv[i];
+            llamaCompletionNPredict = argv[i + 1];
+            
         }
         if (std::string(argv[i]) == "--noNewFile") {
             createNewFile = false;
         }
-        if(!std::string(argv[i]).find('-', 0) && std::string(argv[i-1]).find('-', 0)){
-            filename = std::string(argv[i]);
+        //if(!std::string(argv[i]).find('-', 0) && std::string(argv[i-1]).find('-', 0)){
+        //    filename = std::string(argv[i]);
+        //}
+        if (argv[i - 1][0] != '-' && argv[i][0] != '-'){
+            
+            filename = argv[i]; 
         }
     }
     if (!debugTTY.empty()) {
@@ -623,6 +628,8 @@ int main(int argc, char* argv[]) {
         debugWrite("No config file found");
     }
     debugWrite("Editor started");
+
+    debugWrite("Loading File: " + filename);
     if (checkFileExistance(filename)){
         loadFile(filename);
     }
