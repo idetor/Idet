@@ -480,8 +480,8 @@ void getInlineSuggestion(int cursorX, int cursorY){
         }
         std::string charsBefore;
         if (cursorY >= 0 && cursorY < static_cast<int>(buffer.size())) {
-            int clampX = std::clamp(cursorX, 0, static_cast<int>(buffer[cursorY].size()));
-            charsBefore = buffer[cursorY].substr(0, clampX);
+            std::size_t bytePos = char_to_byte_index(buffer[cursorY], cursorX);
+            charsBefore = buffer[cursorY].substr(0, bytePos);
         } // else charsBefore stays empty
 
         vectorBeforetxt.push_back(charsBefore);
@@ -680,8 +680,8 @@ int main(int argc, char* argv[]) {
                     }
                     std::string charsBefore;
                     if (cursorY >= 0 && cursorY < static_cast<int>(buffer.size())) {
-                        int clampX = std::clamp(cursorX, 0, static_cast<int>(buffer[cursorY].size()));
-                        charsBefore = buffer[cursorY].substr(0, clampX);
+                        std::size_t bytePos = char_to_byte_index(buffer[cursorY], cursorX);
+                        charsBefore = buffer[cursorY].substr(0, bytePos);
                     }
                     vectorBeforetxt.push_back(charsBefore);
                     std::string StrVecTxt;
@@ -701,8 +701,9 @@ int main(int argc, char* argv[]) {
                     for (size_t i = 0; i < llamaOutput.size(); ++i) {
                         char charLlamaOutput = llamaOutput[i];
                         if (charLlamaOutput == '\n') {
-                            std::string newLine = buffer[cursorY].substr(cursorX);
-                            buffer[cursorY] = buffer[cursorY].substr(0, cursorX);
+                            std::size_t bytePos = char_to_byte_index(buffer[cursorY], cursorX);
+                            std::string newLine = buffer[cursorY].substr(bytePos);
+                            buffer[cursorY] = buffer[cursorY].substr(0, bytePos);
                             buffer.insert(buffer.begin() + cursorY + 1, newLine);
                             cursorY++;
                             cursorX = 0;
@@ -716,11 +717,11 @@ int main(int argc, char* argv[]) {
                             if (cursorY >= buffer.size()) {
                                 buffer.emplace_back("");
                             }
-                            if (cursorX > buffer[cursorY].size()) {
-                                buffer[cursorY].resize(cursorX, ' ');
+                            std::size_t bytePos = char_to_byte_index(buffer[cursorY], cursorX);
+                            if (bytePos > buffer[cursorY].size()) {
+                                buffer[cursorY].resize(bytePos, ' ');
                             }
-                            buffer[cursorY].insert(buffer[cursorY].begin() + cursorX,
-                                                charLlamaOutput);
+                            buffer[cursorY].insert(bytePos, 1, static_cast<char>(charLlamaOutput));
                             cursorX++;
                             unsavedChanges = true;
                         }
@@ -740,18 +741,20 @@ int main(int argc, char* argv[]) {
                                 if (cursorY >= buffer.size()) {
                                     buffer.emplace_back("");
                                 }
-                                if (cursorX > buffer[cursorY].size()) {
-                                    buffer[cursorY].resize(cursorX, ' ');
+                                std::size_t bytePos = char_to_byte_index(buffer[cursorY], cursorX);
+                                if (bytePos > buffer[cursorY].size()) {
+                                    buffer[cursorY].resize(bytePos, ' ');
                                 }
-                                buffer[cursorY].insert(cursorX, line);
-                                cursorX += line.size();
+                                buffer[cursorY].insert(bytePos, line);
+                                cursorX += static_cast<int>(line.size()); // size() is enough since we know it's ASCII now
                             } else {
                                 // Subsequent lines - create new lines
-                                std::string restOfLine = buffer[cursorY].substr(cursorX);
-                                buffer[cursorY] = buffer[cursorY].substr(0, cursorX);
+                                std::size_t bytePos = char_to_byte_index(buffer[cursorY], cursorX);
+                                std::string restOfLine = buffer[cursorY].substr(bytePos);
+                                buffer[cursorY] = buffer[cursorY].substr(0, bytePos);
                                 cursorY++;
                                 buffer.insert(buffer.begin() + cursorY, line + restOfLine);
-                                cursorX = line.size();
+                                cursorX = static_cast<int>(line.size()); // size() is enough since we know it's ASCII now
                             }
                         }
                         unsavedChanges = true;

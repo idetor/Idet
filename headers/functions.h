@@ -50,8 +50,8 @@ std::string escapeForJson(const std::string &s) {
     return o.str();
 }
 std::string getStingFromVec(const std::vector<std::string>& inArray){
-    std::string parsedString=joinVecLines(inArray);
-    return escapeForJson(parsedString);
+    // Return raw string without JSON escaping - let nlohmann::json handle it
+    return joinVecLines(inArray);
 }
 
 using json = nlohmann::json;
