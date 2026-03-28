@@ -60,6 +60,7 @@ bool allowInlineSuggestion = true;
 bool autoSuggestionTriggered = false;
 const int AUTO_SUGGESTION_DELAY = 3;
 std::string AiProvider = "llamacpp";
+std::string filename;
 
 void displayInlineSuggestion(const std::vector<std::string>& inlineBuffer,
                              int inlineBufferPosX, int inlineBufferPosY,
@@ -515,14 +516,9 @@ int main(int argc, char* argv[]) {
         std::cerr << "No file or parameter given!\n";
         return 1;
     }
-    std::string_view s{argv[1]};
-    if (s.size() && s[0] == '-') {
-        std::cerr << "No file given! Use arg1 as filename not: " << s << '\n';
-        return 1;
-    }
     std::string debugTTY;
     // check the args
-        for (int i = 1; i < argc; i++) {
+    for (int i = 1; i < argc; i++) {
         if (std::string(argv[i]) == "-d" && i + 1 < argc) {
             debugTTY = argv[i + 1];
         }
@@ -576,6 +572,9 @@ int main(int argc, char* argv[]) {
         if (std::string(argv[i]) == "--noNewFile") {
             createNewFile = false;
         }
+        if(!std::string(argv[i]).find('-', 0) && std::string(argv[i-1]).find('-', 0)){
+            filename = std::string(argv[i]);
+        }
     }
     if (!debugTTY.empty()) {
     debugOut.open(debugTTY);
@@ -590,14 +589,14 @@ int main(int argc, char* argv[]) {
         debugWrite("No config file found");
     }
     debugWrite("Editor started");
-    if (checkFileExistance(argv[1])){
-        loadFile(argv[1]);
+    if (checkFileExistance(filename)){
+        loadFile(filename);
     }
     else {
 
         if (createNewFile == true){
             //createNewFileFunc(argv[1]);
-            loadFile(argv[1]);
+            loadFile(filename);
         }
     }
     
