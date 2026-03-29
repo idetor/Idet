@@ -31,6 +31,8 @@ void debugWrite(const std::string& msg) {
 #define CTRL_KEY(k) ((k) & 0x1f)
 
 // init Vars
+
+// General Vars
 int lastModifiedTime = 0;
 std::vector<std::string> buffer;
 std::vector<std::string> inlineBuffer;
@@ -43,25 +45,34 @@ std::string clipboard;
 int lineNumberScheme = 1; // 1 or 2
 int contentScheme = 3;    // 3 or 4
 bool unsavedChanges = false;
-std::string modelPath = "/var/models/tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf";
-bool llamaInit = false;
-std::string authToken = "";
-bool modelLoaded = false;
 bool createNewFile = true;
 std::string configPath = "~/.config/idet/config.json";
-std::string llamaCompletionHost = "http://localhost:8080"; //URL of llamacpp
-std::string llamaCompletionNPredict = "5"; // how many tokens to generate with TAB
 int lastEditTime = 0;
 const size_t DEBUG_MAX = 10000;
-bool showInlineSuggestion = false;
-bool inlineSuggestionExists = false;
-int inlineSuggestionNPredict = 5;
-bool allowInlineSuggestion = true;
-bool autoSuggestionTriggered = false;
-const int AUTO_SUGGESTION_DELAY = 3;
+std::string filename;
+
+// AI Vars
+std::string modelPath = "/var/models/tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf";
+std::string authToken = "";
+std::string llamaCompletionHost = "http://localhost:8080"; //URL of llamacpp
+std::string llamaCompletionNPredict = "5"; // how many tokens to generate with TAB
 std::string ollamaModel = "gpt-oss:20b";
 std::string AiProvider = "llamacpp";
-std::string filename;
+int inlineSuggestionNPredict = 5;
+int AUTO_SUGGESTION_DELAY = 3;
+bool llamaInit = false;
+bool modelLoaded = false;
+bool showInlineSuggestion = false;
+bool inlineSuggestionExists = false;
+bool allowInlineSuggestion = true;
+bool autoSuggestionTriggered = false;
+
+
+
+
+
+
+
 
 void displayInlineSuggestion(const std::vector<std::string>& inlineBuffer,
                              int inlineBufferPosX, int inlineBufferPosY,
@@ -290,7 +301,7 @@ std::string subtractStringLeft(const std::string fullString, int subtraction) {
     return fullString.substr(subtraction);
 }
 
-void draw(int cursorY, int cursorX, int& rowOffset, const std::string& filename,int lineNumberScheme, int contentScheme, bool selectionActive,bool unsavedChanges, int& colOffset) 
+void draw(int cursorY, int cursorX, int& rowOffset, const std::string& filename,int lineNumberScheme, int contentScheme, bool selectionActive,bool unsavedChanges, int& colOffset, int inlineSuggestionNPredict = 0) 
 {
 erase();
 
@@ -330,10 +341,12 @@ if (colOffset > maxColOffset) colOffset = maxColOffset;
 // --- HEADER ---
 attron(A_BOLD);
 mvhline(0, 0, ' ', COLS); 
-mvprintw(0, 0, "Idet-Editor - File: %s%s | Selection: %s",
+mvprintw(0, 0, "Idet-Editor - File: %s%s | Selection: %s | Suggestion Length: %d",
          filename.c_str(),
          unsavedChanges ? "*" : "",
-         selectionActive ? "ON" : "OFF");
+         selectionActive ? "ON" : "OFF", 
+        inlineSuggestionNPredict
+        );
 attroff(A_BOLD);
 int selTop = std::min(selStartY, selEndY);
 int selBottom = std::max(selStartY, selEndY);
@@ -453,8 +466,18 @@ std::size_t char_to_byte_index(const std::string &s, std::size_t char_idx) {
     return bytes;
 }
 
-// Removed broken remakeBufferUtf8 function - not needed
-// The buffer already stores UTF-8 strings correctly
+void drawAISettings(){
+
+}
+
+void displayAISettings(){
+    while (true)
+    {
+        drawAISettings();
+        int settingsCh = getch();
+    }
+    
+}
 
 void loadConfig(std::string configPath) {
     std::ifstream configFile(configPath);
@@ -672,7 +695,7 @@ int main(int argc, char* argv[]) {
         if (cursorY - rowOffset >= maxVisibleRows) rowOffset = cursorY - maxVisibleRows + 1;
         if (cursorY - rowOffset < 0) rowOffset = cursorY;
 
-        draw(cursorY, cursorX, rowOffset, argv[1], lineNumberScheme, contentScheme, selectionActive, unsavedChanges, colOffset);
+        draw(cursorY, cursorX, rowOffset, argv[1], lineNumberScheme, contentScheme, selectionActive, unsavedChanges, colOffset, inlineSuggestionNPredict);
 
         // Check for auto-suggestion trigger after 3 seconds of inactivity
         auto now = std::chrono::system_clock::now();
@@ -863,6 +886,13 @@ int main(int argc, char* argv[]) {
                             std::to_string(selEndX) + ")");
                 }
                 break;
+            case 274:
+                inlineSuggestionNPredict++;
+            case 273:
+                if (inlineSuggestionNPredict > 0){
+                    inlineSuggestionNPredict--;
+                }
+                
             case 1:
                 selectionActive = true;
                 selStartX = 0;
