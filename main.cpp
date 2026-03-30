@@ -1270,10 +1270,9 @@ int main(int argc, char* argv[]) {
                     int len = static_cast<int>(line.size());
                     if (cursorX > 0 && cursorX <= len) {
                         // Backspace: delete UTF-8 character before cursor
-                        size_t charStart = getUtf8CharStart(line, cursorX - 1);
+                        size_t charStart = getUtf8CharStart(line, cursorX);
                         int charLen = getUtf8CharLen(line, charStart);
                         line.erase(charStart, charLen);
-                        cursorX -= (charLen > 0 ? charLen : 1);
                         if (cursorX < 0) cursorX = 0;
                     } else if (cursorX >= 0 && cursorX < len) {
                         // Delete: remove UTF-8 character at cursor
