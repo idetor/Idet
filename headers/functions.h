@@ -12,13 +12,72 @@
 #include <iostream>
 
 
+
 struct cacheAction {
     std::string action;
-    std::string bufferDiffrence;
+    int affectedStartLine;           
+    std::vector<std::string> removedLines;
+    std::vector<std::string> insertedLines;
     int keyPressed;
     int cursorX;
     int cursorY;
+    int pasteSize;  
 };
+
+
+inline cacheAction createDiff(
+    const std::vector<std::string>& oldBuffer,
+    const std::vector<std::string>& newBuffer,
+    int cursorX, int cursorY, int keyPressed, int pasteSize = 0) {
+    
+    cacheAction diff;
+    diff.action = "edit";
+    diff.keyPressed = keyPressed;
+    diff.cursorX = cursorX;
+    diff.cursorY = cursorY;
+    diff.pasteSize = pasteSize;
+    diff.affectedStartLine = 0;
+    
+    if (oldBuffer == newBuffer) {
+        diff.affectedStartLine = 0;
+        return diff;
+    }
+    
+    size_t firstDiff = 0;
+    size_t commonStart = 0;
+    while (commonStart < oldBuffer.size() && commonStart < newBuffer.size() &&
+           oldBuffer[commonStart] == newBuffer[commonStart]) {
+        commonStart++;
+    }
+    
+    if (commonStart <= oldBuffer.size()) {
+        diff.affectedStartLine = commonStart;
+        for (size_t i = commonStart; i < oldBuffer.size(); ++i) {
+            diff.removedLines.push_back(oldBuffer[i]);
+        }
+    }
+    
+    if (commonStart <= newBuffer.size()) {
+        for (size_t i = commonStart; i < newBuffer.size(); ++i) {
+            diff.insertedLines.push_back(newBuffer[i]);
+        }
+    }
+    return diff;
+}
+
+
+inline void applyDiff(std::vector<std::string>& buffer, const cacheAction& diff) {
+    int lineNum = diff.affectedStartLine;
+    if (lineNum < buffer.size()) {
+        buffer.erase(buffer.begin() + lineNum, buffer.end());
+    }
+    for (const auto& line : diff.insertedLines) {
+        buffer.push_back(line);
+    }
+    if (buffer.empty()) {
+        buffer.push_back("");
+    }
+}
 
 struct posCords {
     bool exists;

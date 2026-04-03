@@ -68,6 +68,7 @@ std::string ollamaModel = "gpt-oss:20b";
 std::string AiProvider = "llamacpp";
 int inlineSuggestionNPredict = 5;
 int AUTO_SUGGESTION_DELAY = 3;
+int maxInlinePromptSize = 10000;
 bool llamaInit = false;
 bool modelLoaded = false;
 bool showInlineSuggestion = false;
@@ -436,7 +437,7 @@ for (int i = 0; i < maxRows && (rowOffset + i) < (int)buffer.size(); ++i) {
     if (fileLine >= (int)buffer.size()) continue;
     std::string& line = buffer[fileLine];
 
-    // Convert UTF-8 → wide string using safe conversion
+    
     std::wstring wline = utf8_to_wstring(line);
 
     int startX = colOffset;
@@ -535,18 +536,26 @@ std::size_t char_to_byte_index(const std::string &s, std::size_t char_idx) {
     return bytes;
 }
 
-void appendCacheActionBuffer(const std::string& action, const std::string& bufferDifference, int keyPressed, int cursorX, int cursorY , std::vector<cacheAction>& cacheActionBuffer, int maxCacheNum) {
+void appendCacheActionBuffer(const std::vector<std::string>& oldBuffer, const std::vector<std::string>& newBuffer, 
+                             int keyPressed, int cursorX, int cursorY, std::vector<cacheAction>& cacheActionBuffer, 
+                             int maxCacheNum, int pasteSize = 0) {
     // If not at the latest state, remove all "future" actions (redo history gets cleared)
     if (cacheIndex >= 0 && cacheIndex < (int)cacheActionBuffer.size() - 1) {
         cacheActionBuffer.erase(cacheActionBuffer.begin() + cacheIndex + 1, cacheActionBuffer.end());
     }
     
-    if (cacheActionBuffer.size() >= maxCacheNum) {
-        cacheActionBuffer.erase(cacheActionBuffer.begin()); // remove oldest
-        cacheIndex = std::max(-1, cacheIndex - 1); // adjust index if we removed the first element
+    // Create a diff instead of storing full buffer
+    cacheAction diff = createDiff(oldBuffer, newBuffer, cursorX, cursorY, keyPressed, pasteSize);
+    
+    // Only add to cache if there's actually a change
+    if (!diff.removedLines.empty() || !diff.insertedLines.empty()) {
+        if (cacheActionBuffer.size() >= maxCacheNum) {
+            cacheActionBuffer.erase(cacheActionBuffer.begin()); // remove oldest
+            cacheIndex = std::max(-1, cacheIndex - 1); // adjust index if we removed the first element
+        }
+        cacheActionBuffer.push_back(diff);
+        cacheIndex = cacheActionBuffer.size() - 1; // always move to latest state after new action
     }
-    cacheActionBuffer.push_back({action, bufferDifference, keyPressed, cursorX, cursorY});
-    cacheIndex = cacheActionBuffer.size() - 1; // always move to latest state after new action
 }
 
 void drawAISettings(std::string authToken, std::string llamaCompletionHost, std::string llamaCompletionNPredict, std::string ollamaModel , std::string AiProvider, int inlineSuggestionNPredict, int AUTO_SUGGESTION_DELAY){
@@ -730,30 +739,6 @@ std::vector<std::string> generateInlineBuffer(const std::string& inputBufferStri
     return outVector;
 }
 
-void restoreBufferFromString(const std::string& bufferString) {
-    buffer.clear();
-    if (bufferString.empty()) {
-        buffer.push_back("");
-        return;
-    }
-    
-    std::string line;
-    size_t start = 0, end = 0;
-    while (start < bufferString.size()) {
-        end = bufferString.find('\n', start);
-        if (end == std::string::npos) {
-            end = bufferString.size();
-        }
-        line = bufferString.substr(start, end - start);
-        buffer.push_back(line);
-        start = end + 1;
-    }
-    
-    if (buffer.empty()) {
-        buffer.push_back("");
-    }
-}
-
 void undo(int& cursorX, int& cursorY) {
     if (cacheIndex < 0) {
         debugWrite("Nothing to undo");
@@ -763,20 +748,26 @@ void undo(int& cursorX, int& cursorY) {
     cacheIndex--;
     if (cacheIndex >= 0) {
         const cacheAction& action = cacheActionBuffer[cacheIndex];
-        restoreBufferFromString(action.bufferDiffrence);
+        // Reconstruct buffer by applying all diffs from start to cacheIndex
+        buffer.clear();
+        buffer.push_back("");
+        
+        for (int i = 0; i <= cacheIndex; ++i) {
+            applyDiff(buffer, cacheActionBuffer[i]);
+        }
+        
         cursorX = action.cursorX;
         cursorY = action.cursorY;
         unsavedChanges = true;
         debugWrite("Undo: restored to cache index " + std::to_string(cacheIndex));
     } else {
         // Before any actions - restore to empty buffer
-        //buffer.clear();
-        //buffer.push_back("");
-        //cursorX = 0;
-        //cursorY = 0;
-        //unsavedChanges = true;
-        //debugWrite("Undo: restored to initial state");
-        //cacheIndex = -1;
+        buffer.clear();
+        buffer.push_back("");
+        cursorX = 0;
+        cursorY = 0;
+        unsavedChanges = true;
+        debugWrite("Undo: restored to initial state");
     }
 }
 
@@ -789,7 +780,14 @@ void redo(int& cursorX, int& cursorY) {
     cacheIndex++;
     if (cacheIndex < (int)cacheActionBuffer.size()) {
         const cacheAction& action = cacheActionBuffer[cacheIndex];
-        restoreBufferFromString(action.bufferDiffrence);
+        // Reconstruct buffer by applying all diffs from start to cacheIndex
+        buffer.clear();
+        buffer.push_back("");
+        
+        for (int i = 0; i <= cacheIndex; ++i) {
+            applyDiff(buffer, cacheActionBuffer[i]);
+        }
+        
         cursorX = action.cursorX;
         cursorY = action.cursorY;
         unsavedChanges = true;
@@ -797,15 +795,34 @@ void redo(int& cursorX, int& cursorY) {
     }
 }
 
-void getInlineSuggestion(int cursorX, int cursorY){
+void getInlineSuggestion(int cursorX, int cursorY, std::vector<std::string>& buffer, int maxInlineSuggestionPromptLength, bool otherConstruct = false){
         debugWrite("Tab pressed - Triggering AI Completion");
         std::vector<std::string> vectorBeforetxt;
+        
         vectorBeforetxt.reserve(static_cast<size_t>(cursorY) + 1); // avoid reallocs
-
+        
         int limitLine = std::max(0, cursorY); // ensure non-negative
         for (int vecLine = 0; vecLine < limitLine && vecLine < static_cast<int>(buffer.size()); ++vecLine) {
+            // check if vecBeforetxt is already at max prompt length
+            if (getUtf8StrLen(joinVecLines(vectorBeforetxt)) >= maxInlineSuggestionPromptLength) {
+                otherConstruct = true;
+                break;
+            }
             vectorBeforetxt.push_back(buffer[vecLine]);
         }
+        vectorBeforetxt.clear();
+        if (otherConstruct) {
+            std::reverse(vectorBeforetxt.begin(), vectorBeforetxt.end());
+            for (int vecLine = cursorY; vecLine >= 0 && vecLine < static_cast<int>(buffer.size()); --vecLine) {
+                if (getUtf8StrLen(joinVecLines(vectorBeforetxt)) >= maxInlineSuggestionPromptLength) {
+                    break;
+                }
+                vectorBeforetxt.push_back(buffer[vecLine]);
+            }
+            std::reverse(vectorBeforetxt.begin(), vectorBeforetxt.end());
+        }
+
+
         std::string charsBefore;
         if (cursorY >= 0 && cursorY < static_cast<int>(buffer.size())) {
             std::size_t bytePos = char_to_byte_index(buffer[cursorY], cursorX);
@@ -879,6 +896,7 @@ int main(int argc, char* argv[]) {
             configPath = argv[i + 1];
         }
     }
+    
 
 
     // check the args
@@ -1035,7 +1053,7 @@ int main(int argc, char* argv[]) {
         if (timeSinceLastEdit >= AUTO_SUGGESTION_DELAY && !autoSuggestionTriggered && 
             !showInlineSuggestion && !inlineSuggestionExists && allowInlineSuggestion) {
             debugWrite("Auto-triggering inline suggestion after " + std::to_string(timeSinceLastEdit) + " seconds");
-            getInlineSuggestion(cursorX, cursorY);
+            getInlineSuggestion(cursorX, cursorY, buffer, maxInlinePromptSize);
             inlineSuggestionExists = true;
             autoSuggestionTriggered = true;
         }
@@ -1054,8 +1072,8 @@ int main(int argc, char* argv[]) {
         int oldXPos = cursorX;
         int oldYPos = cursorY;
         
-        // Store state before action for undo
-        std::string stateBeforeAction = joinVecLines(buffer);
+        // Store buffer state before action for undo/redo
+        std::vector<std::string> bufferBeforeAction = buffer;
         
         switch (ch) {
             case CTRL_KEY('q'):
@@ -1339,8 +1357,8 @@ int main(int argc, char* argv[]) {
                 selEndY = cursorY;
                 break;
 
-            case 386:
-                // shift + end
+            case 540:
+                //strg + shift + end
                 debugWrite(selectionActive ? "shift + end - extending" : "shift + end");
                 if (!selectionActive){
                     selectionActive = true;
@@ -1353,8 +1371,8 @@ int main(int argc, char* argv[]) {
                 cursorY = buffer.size();
 
                 break;
-            case 391:
-                // shift + home
+            case 545:
+                //strg + shift + home
                 debugWrite(selectionActive ? "shift + home - extending" : "shift + home");
                 if (!selectionActive){
                     selectionActive = true;
@@ -1696,12 +1714,18 @@ int main(int argc, char* argv[]) {
         }
 
         // Store action in cache if buffer changed or position changed
-        std::string stateAfterAction = joinVecLines(buffer);
-        if (stateAfterAction != stateBeforeAction || cursorX != oldXPos || cursorY != oldYPos) {
+        if (buffer != bufferBeforeAction || cursorX != oldXPos || cursorY != oldYPos) {
             // Only cache certain actions that change buffer state
             if (ch >= 32 || ch == 10 || ch == KEY_BACKSPACE || ch == 127 || 
                 ch == 330 || ch == CTRL_KEY('k') || ch == CTRL_KEY('v') || ch == 9) {
-                appendCacheActionBuffer("edit", stateAfterAction, ch, cursorX, cursorY, cacheActionBuffer, maxCacheNum);
+                
+                // For paste operations, track the size of pasted content
+                int pasteSize = 0;
+                if (ch == CTRL_KEY('v')) {
+                    pasteSize = clipboard.size();
+                }
+                
+                appendCacheActionBuffer(bufferBeforeAction, buffer, ch, cursorX, cursorY, cacheActionBuffer, maxCacheNum, pasteSize);
             }
         }
 
