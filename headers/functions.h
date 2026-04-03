@@ -35,6 +35,27 @@ void warnQuitWithUnsavedChanges() {
     }
 }
 
+int getUtf8StrLen(const std::string& str) {
+    int len = 0;
+    for (size_t i = 0; i < str.size();) {
+        unsigned char c = static_cast<unsigned char>(str[i]);
+        if ((c & 0x80) == 0) { // 1 byte
+            i += 1;
+        } else if ((c & 0xE0) == 0xC0) { // 2 bytes
+            i += 2;
+        } else if ((c & 0xF0) == 0xE0) { // 3 bytes
+            i += 3;
+        } else if ((c & 0xF8) == 0xF0) { // 4 bytes
+            i += 4;
+        } else {
+            i += 1; 
+        }
+        len++;
+    }
+    return len;
+}
+
+
 // plain join (returns embedded newlines)
 std::string joinVecLines(const std::vector<std::string>& arr) {
     std::string out;

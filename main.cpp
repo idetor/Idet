@@ -1240,13 +1240,20 @@ int main(int argc, char* argv[]) {
                     break;
                 }
             }
-            case 402: {
+            case 570: {
                 debugWrite("shift + arrow right");
+                selectionActive = true;
+                selStartX = cursorX;
+                selStartY = cursorY;
+                selEndY = cursorY;
                 std::string stringAfter = subtractStringLeft(buffer[cursorY], cursorX);
                 debugWrite("cursorY pos: " + std::to_string(cursorY));
                 debugWrite("current line content:" + buffer[cursorY]);
                 std::string onRight = getWordSelectionRight(stringAfter);
                 debugWrite("OnRight is: " + onRight);
+                int moveRight = getUtf8StrLen(onRight);
+                cursorX += moveRight;
+                selEndX = cursorX;
                 break;
             }
             case KEY_F(1):
@@ -1354,18 +1361,23 @@ int main(int argc, char* argv[]) {
                 break;
             case KEY_UP:
                 if (cursorY > 0) cursorY--;
+                cursorX = std::min(cursorX, getUtf8StrLen(buffer[cursorY]));
                 showInlineSuggestion = false;
                 inlineSuggestionExists = false;
+                selectionActive = false;
                 break;
             case KEY_DOWN:
                 if (cursorY < static_cast<int>(buffer.size()) - 1) cursorY++;
                 showInlineSuggestion = false;
                 inlineSuggestionExists = false;
+                selectionActive = false;
+                cursorX = std::min(cursorX, getUtf8StrLen(buffer[cursorY]));
                 break;
             case KEY_LEFT:
                 if (cursorX > 0) cursorX--;
                 showInlineSuggestion = false;
                 inlineSuggestionExists = false;
+                selectionActive = false;
                 break;
             case KEY_RIGHT: {
                 int charCount = 0;
@@ -1382,6 +1394,7 @@ int main(int argc, char* argv[]) {
                 if (cursorX < charCount) cursorX++;
                 showInlineSuggestion = false;
                 inlineSuggestionExists = false;
+                selectionActive = false;
                 break;
             }
             case KEY_HOME:
