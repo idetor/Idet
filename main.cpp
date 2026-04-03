@@ -281,8 +281,8 @@ void saveFile(const std::string& filename ) {
 
 void copyClipboard(int startY , int endY){
             for (int y = startY; y <= endY; y++) {
-                int lineStartX = (y == selStartY) ? selStartX : 0;
-                int lineEndX   = (y == selEndY) ? selEndX : buffer[y].size();
+                int lineStartX = (y == selStartY) ? std::min(selStartX, selEndX) : 0;
+                int lineEndX   = (y == selEndY) ? std::max(selStartX, selEndX) : buffer[y].size();
                 clipboard += buffer[y].substr(lineStartX, lineEndX - lineStartX);
                 if (y != endY) clipboard += "\n";
             }
@@ -364,18 +364,6 @@ void showHelp() {
 
     // Wait for user to press any key
     getch();
-}
-
-std::string subtractStringLeft(const std::string fullString, int subtraction) {
-    if (subtraction <= 0) {
-        return fullString; // nothing to remove
-    }
-
-    if (subtraction >= fullString.length()) {
-        return ""; // remove everything
-    }
-
-    return fullString.substr(subtraction);
 }
 
 void draw(int cursorY, int cursorX, int& rowOffset, 
@@ -1241,7 +1229,7 @@ int main(int argc, char* argv[]) {
                 }
             }
             case 570: {
-                debugWrite("shift + arrow right");
+                debugWrite("shift + strg + arrow right");
                 selectionActive = true;
                 selStartX = cursorX;
                 selStartY = cursorY;
@@ -1256,6 +1244,27 @@ int main(int argc, char* argv[]) {
                 selEndX = cursorX;
                 break;
             }
+            case 555:{
+                debugWrite("shift + strg + arrow left");
+                selectionActive = true;
+                selStartX = cursorX;
+                selStartY = cursorY;
+                selEndY = cursorY;
+                std::string stringBefore = subtractStringRight(buffer[cursorY], cursorX);
+                debugWrite("cursorY pos: " + std::to_string(cursorY));
+                debugWrite("current line content:" + buffer[cursorY]);
+                std::string onLeft = getWordSelectionLeft(stringBefore);
+                debugWrite("OnLeft is: " + onLeft);
+                int moveLeft = getUtf8StrLen(onLeft);
+                cursorX -= moveLeft;
+                if (cursorX < 0) cursorX = 0;
+                selEndX = cursorX;
+                //switchStartEnd(selStartX, selEndX);
+                debugWrite("selStartX: " + std::to_string(selStartX) + " selEndX: " + std::to_string(selEndX));
+
+                break;
+            }
+            
             case KEY_F(1):
                 showHelp();
                 break;

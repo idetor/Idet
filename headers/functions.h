@@ -35,6 +35,53 @@ void warnQuitWithUnsavedChanges() {
     }
 }
 
+void switchStartEnd(int& selStartX, int& selEndX) {
+    std::swap(selStartX, selEndX);
+}
+
+std::string subtractStringLeft(const std::string fullString, int subtraction) {
+    if (subtraction <= 0) {
+        return fullString; 
+    }
+
+    if (subtraction >= fullString.length()) {
+        return ""; 
+    }
+
+    return fullString.substr(subtraction);
+}
+
+
+std::string getWordSelectionLeft(const std::string& lineContent) {
+    if (lineContent.empty()) return "";
+    
+    std::string wordLeft;
+    bool foundWord = false;
+    
+    
+    for (auto it = lineContent.rbegin(); it != lineContent.rend(); ++it) {
+        if (*it == ' ') {
+            
+            if (foundWord) {
+                break;
+            }
+            
+            continue;
+        }
+        
+        foundWord = true;
+        wordLeft = *it + wordLeft; 
+    }
+    return wordLeft;
+}
+std::string subtractStringRight(const std::string& lineContent, int cursorXPos) {
+    if (cursorXPos < 0 || cursorXPos > (int)lineContent.size()) {
+        return lineContent; // invalid position, return original
+    }
+    return lineContent.substr(0, cursorXPos);
+}
+
+
 int getUtf8StrLen(const std::string& str) {
     int len = 0;
     for (size_t i = 0; i < str.size();) {
