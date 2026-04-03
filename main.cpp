@@ -1356,7 +1356,7 @@ int main(int argc, char* argv[]) {
                 selEndX = cursorX;
                 selEndY = cursorY;
                 break;
-
+            
             case 540:
                 //strg + shift + end
                 debugWrite(selectionActive ? "shift + end - extending" : "shift + end");
@@ -1383,6 +1383,30 @@ int main(int argc, char* argv[]) {
                 selEndY = 0;
                 cursorX = 0;
                 cursorY = 0;
+                break;
+            case 386:
+                // shift + end
+                debugWrite(selectionActive ? "shift + end - extending" : "shift + end");
+                if (!selectionActive){
+                    selectionActive = true;
+                    selStartX = cursorX;
+                    selStartY = cursorY;
+                }
+                selEndX = buffer[cursorY].size();
+                selEndY = cursorY;
+                cursorX = buffer[cursorY].size();
+                break;
+            case 391:
+                // shift + home
+                debugWrite(selectionActive ? "shift + home - extending" : "shift + home");
+                if (!selectionActive){
+                    selectionActive = true;
+                    selStartX = cursorX;
+                    selStartY = cursorY;
+                }
+                selEndX = 0;
+                selEndY = cursorY;
+                cursorX = 0;
                 break;
             case 402:
                 // shift + arrow right
