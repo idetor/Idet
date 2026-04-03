@@ -1368,6 +1368,7 @@ int main(int argc, char* argv[]) {
                 showHelp();
                 break;
             case 544:
+                selectionActive = false;
                 cursorX = 0;
                 cursorY = 0;
                 break;
@@ -1378,6 +1379,7 @@ int main(int argc, char* argv[]) {
                 cursorY = oldYPos;
                 break;
             case 539:
+                selectionActive = false;
                 if (!buffer.empty()) {
                     cursorY = static_cast<int>(buffer.size() - 1);
                     cursorX = static_cast<int>(buffer.back().size());
@@ -1509,10 +1511,12 @@ int main(int argc, char* argv[]) {
                 cursorX = 0;
                 showInlineSuggestion = false;
                 inlineSuggestionExists = false;
+                selectionActive = false;
                 break;
             case KEY_END: {
                 int charCount = 0;
                 size_t bytePos = 0;
+                selectionActive = false;
                 while (bytePos < buffer[cursorY].size()) {
                     unsigned char c = static_cast<unsigned char>(buffer[cursorY][bytePos]);
                     if ((c & 0x80) == 0) bytePos += 1;
