@@ -60,6 +60,8 @@ int activeBufferIndex = 0;
 std::vector<char> openCharList;
 bool activeSearch = false;
 std::string searchTerm = "";
+int SearchLastFoundX = -1;
+int SearchLastFoundY = -1;
 
 // AI Vars
 std::string modelPath = "/var/models/tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf";
@@ -1048,7 +1050,7 @@ int main(int argc, char* argv[]) {
 
         draw(cursorY, cursorX, rowOffset, filename, lineNumberScheme, contentScheme, selectionActive, unsavedChanges, colOffset, inlineSuggestionNPredict, multiFileMode, fileList, activeBufferIndex);
         if (activeSearch){
-            searchOverlay(buffer, cursorX, cursorY, activeSearch, searchTerm);
+            searchOverlay(buffer, cursorX, cursorY, activeSearch, searchTerm, SearchLastFoundX, SearchLastFoundY);
             continue;
         }
         // Check for auto-suggestion trigger after 3 seconds of inactivity
@@ -1690,7 +1692,7 @@ int main(int argc, char* argv[]) {
                 break;
             }
             case 270:
-                searchOverlay(buffer, cursorX, cursorY, activeSearch, searchTerm);
+                searchOverlay(buffer, cursorX, cursorY, activeSearch, searchTerm, SearchLastFoundX, SearchLastFoundY);
                 
                 break;
             default: {

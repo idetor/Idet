@@ -165,14 +165,12 @@ struct colorPair {
     int bgColor;
 };
 
-void searchOverlay(std::vector<std::string>& buffer, int& cursorX, int& cursorY, bool& searchActive , std::string& searchTerm){
+void searchOverlay(std::vector<std::string>& buffer, int& cursorX, int& cursorY, bool& searchActive , std::string& searchTerm,
+int& lastFoundX, int& lastFoundY){
     searchActive = true;
     int searchRow = LINES - 2;
     std::string searchSuggestion = "";
     
-    
-    int lastFoundY = -1;
-    int lastFoundX = -1;
 
     while (true) {
         move(searchRow, 0);
