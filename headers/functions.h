@@ -212,6 +212,7 @@ void searchOverlay(std::vector<std::string>& buffer, int& cursorX, int& cursorY,
 int& lastFoundX, int& lastFoundY, std::vector<posCords>& searchResults) {
     searchActive = true;
     int searchRow = LINES - 2;
+    bool firstAction = true;
     std::string searchSuggestion = "";
     
 
@@ -234,13 +235,19 @@ int& lastFoundX, int& lastFoundY, std::vector<posCords>& searchResults) {
             break; // ESC key 
         } 
         //also handle backspace
-        else if (ch == KEY_BACKSPACE || ch == 263) {
-            if (!searchTerm.empty()) {
-                searchTerm.pop_back();
-                searchSuggestion = "";
-                lastFoundY = -1;
-                lastFoundX = -1;
+        else if (ch == KEY_BACKSPACE || ch == 263 ) {
+            if (!firstAction){
+                if (!searchTerm.empty()) {
+                    searchTerm.pop_back();
+                    searchSuggestion = "";
+                    lastFoundY = -1;
+                    lastFoundX = -1;
+                }
+            }else{
+                searchTerm = "";
+                continue;
             }
+
         } else if (ch == '\n' || ch == '\r' || ch == 10 || ch == 13 || ch == KEY_ENTER) {
             
             if (!searchTerm.empty()) {
@@ -340,6 +347,9 @@ int& lastFoundX, int& lastFoundY, std::vector<posCords>& searchResults) {
             }
         } else {
             searchSuggestion = "";
+        }
+        if (ch > 0){
+            firstAction = false;
         }
     }
 }
