@@ -149,6 +149,16 @@ posCords findNextInBuffer(std::vector<std::string> &buffer, std::string compareS
     return {false, -1, -1};
 }
 
+int waitOnKeyPress(){
+    while (true) {
+        int ch = getch();
+        if (ch != ERR) {
+            return ch;
+        }
+    }
+}
+
+
 // Find the last occurrence of a string in buffer
 posCords findLastInBuffer(std::vector<std::string> &buffer, std::string compareString) {
     for (int y = buffer.size() - 1; y >= 0; y--) {

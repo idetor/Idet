@@ -1054,7 +1054,7 @@ int main(int argc, char* argv[]) {
         if (activeSearch) {
             debugWrite("Searching through results...");
             emptySearchOverlay(searchTerm);
-            int ch = waitForKeyPress(10, 27);
+            int ch = waitOnKeyPress();
             debugWrite("Key pressed during search: " + std::to_string(ch));
             if (ch == 10) {
                 debugWrite("Enter pressed, moving through results");
@@ -1068,8 +1068,14 @@ int main(int argc, char* argv[]) {
                     searchcount++;
                 }
                 continue;
-            } 
+            }
             else if (ch == 27) { // ESC
+                activeSearch = false;
+                searchResults.clear();
+                searchcount = 0;
+                continue;
+            }
+            else{
                 activeSearch = false;
                 searchResults.clear();
                 searchcount = 0;
