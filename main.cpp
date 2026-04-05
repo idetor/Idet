@@ -62,6 +62,8 @@ bool activeSearch = false;
 std::string searchTerm = "";
 int SearchLastFoundX = -1;
 int SearchLastFoundY = -1;
+std::vector<posCords> searchResults;
+int searchcount = 0;
 
 // AI Vars
 std::string modelPath = "/var/models/tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf";
@@ -1049,9 +1051,29 @@ int main(int argc, char* argv[]) {
         if (cursorY - rowOffset < 0) rowOffset = cursorY;
 
         draw(cursorY, cursorX, rowOffset, filename, lineNumberScheme, contentScheme, selectionActive, unsavedChanges, colOffset, inlineSuggestionNPredict, multiFileMode, fileList, activeBufferIndex);
-        if (activeSearch){
-            searchOverlay(buffer, cursorX, cursorY, activeSearch, searchTerm, SearchLastFoundX, SearchLastFoundY);
-            continue;
+        if (activeSearch) {
+            debugWrite("Searching through results...");
+
+            int ch = waitForKeyPress(KEY_ENTER, 27);
+
+            if (ch == KEY_ENTER) {
+                if (!searchResults.empty()) {
+                    if (searchcount >= searchResults.size()) {
+                        searchcount = 0; 
+                    }
+
+                    cursorX = searchResults[searchcount].x;
+                    cursorY = searchResults[searchcount].y;
+                    searchcount++;
+                }
+                continue;
+            } 
+            else if (ch == 27) { // ESC
+                activeSearch = false;
+                searchResults.clear();
+                searchcount = 0;
+                continue;
+            }
         }
         // Check for auto-suggestion trigger after 3 seconds of inactivity
         auto now = std::chrono::system_clock::now();
@@ -1692,8 +1714,8 @@ int main(int argc, char* argv[]) {
                 break;
             }
             case 270:
-                searchOverlay(buffer, cursorX, cursorY, activeSearch, searchTerm, SearchLastFoundX, SearchLastFoundY);
-                
+                searchOverlay(buffer, cursorX, cursorY, activeSearch, searchTerm, SearchLastFoundX, SearchLastFoundY, searchResults);
+                debugWrite("got results in Vec: " + posCordsVecToString(searchResults));
                 break;
             default: {
                 if (ch >= 128 && ch <= 255) {

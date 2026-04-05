@@ -164,13 +164,43 @@ struct colorPair {
     int fgColor;
     int bgColor;
 };
+int waitForKeyPress(int key1, int key2) {
+    int ch;
+    while (true) {
+        ch = getch();
+        if (ch == key1 || ch == key2) {
+            return ch;
+        }
+    }
+}
+std::string posCordsToString(posCords cords){
+    if (!cords.exists) return "Not found";
+    return "X: " + std::to_string(cords.x) + " Y: " + std::to_string(cords.y);
+}
+std::string posCordsVecToString(std::vector<posCords> cordsVec){
+    std::string result = "";
+    for (const auto& cords : cordsVec) {
+        result += posCordsToString(cords) + "\n";
+    }
+    return result.empty() ? "No positions found" : result;
+}
+void fillInVecPosCords(std::vector<posCords> &vec, std::vector<std::string> &buffer, std::string searchString){
+    for (int y = 0; y < buffer.size(); y++){
+        size_t pos = buffer[y].find(searchString);
+        while (pos != std::string::npos){
+            vec.push_back({true, (int)pos, y});
+            pos = buffer[y].find(searchString, pos + searchString.size());
+        }
+    }
+}
 
 void searchOverlay(std::vector<std::string>& buffer, int& cursorX, int& cursorY, bool& searchActive , std::string& searchTerm,
-int& lastFoundX, int& lastFoundY){
+int& lastFoundX, int& lastFoundY, std::vector<posCords>& searchResults) {
     searchActive = true;
     int searchRow = LINES - 2;
     std::string searchSuggestion = "";
     
+
 
     while (true) {
         move(searchRow, 0);
@@ -215,6 +245,7 @@ int& lastFoundX, int& lastFoundY){
                     lastFoundY = cords.y;
                     lastFoundX = cords.x;
                 }
+                fillInVecPosCords(searchResults, buffer, searchTerm);
                 break;
             }
             break;
