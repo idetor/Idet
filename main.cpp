@@ -13,6 +13,7 @@
 #include <string_view>
 #include <iostream>
 #include <unistd.h>
+#include "headers/light/bash.hpp"
 //#include "headers/LlamaClient.hpp"
 #include "headers/networkAIApi.hpp"
 #include "headers/functions.h"
@@ -369,6 +370,7 @@ void draw(int cursorY, int cursorX, int& rowOffset,
     std::vector<std::string> fileList = std::vector<std::string>() , int activeBufferIndex = 0)
 {
 erase();
+commentPositions.clear(); // Clear comment positions for this draw cycle
 
 int lineNumberWidth = std::to_string(buffer.size()).length() + 2;
 int maxRows = LINES - 2; // leave last line for status bar
@@ -443,6 +445,9 @@ for (int i = 0; i < maxRows && (rowOffset + i) < (int)buffer.size(); ++i) {
     if (fileLine >= (int)buffer.size()) continue;
     std::string& line = buffer[fileLine];
 
+    // Detect syntax highlighting affiliation for this line
+    syntaxHighlightingAffiliation.clear();
+    detectInLineAffiliation(line, fileLine);
     
     std::wstring wline = utf8_to_wstring(line);
 
@@ -465,14 +470,30 @@ for (int i = 0; i < maxRows && (rowOffset + i) < (int)buffer.size(); ++i) {
                 inSelection = (x < selEndX);
         }
 
-        attron(COLOR_PAIR(contentScheme));
+        // Determine color based on syntax highlighting
+        int colorPair = contentScheme; // default content color
+        
+        // Check if in comment - if so, use comment color regardless of content
+        if (isInComment(x, fileLine)) {
+            colorPair = 15; // comments (gray/dark)
+        } else if (isCommand(x, fileLine)) {
+            colorPair = 11; // commands (green)
+        } else if (isKeyword(x, fileLine)) {
+            colorPair = 12; // keywords (cyan)
+        } else if (isInScriptDefinition(x, fileLine)) {
+            colorPair = 13; // function definitions (yellow)
+        } else if (isOperatorAt(x, fileLine)) {
+            colorPair = 14; // operators (magenta)
+        }
+
+        attron(COLOR_PAIR(colorPair));
         if (inSelection) attron(A_REVERSE);
 
         // Print ONE wide character
         mvaddnwstr(i + 1, screenX, &wline[x], 1);
 
         if (inSelection) attroff(A_REVERSE);
-        attroff(COLOR_PAIR(contentScheme));
+        attroff(COLOR_PAIR(colorPair));
     }
 }
 
@@ -1026,6 +1047,11 @@ int main(int argc, char* argv[]) {
     init_pair(4, COLOR_YELLOW, COLOR_BLACK); // alternate content
 
     init_pair(10, COLOR_CYAN, COLOR_BLUE);
+    init_pair(11, COLOR_GREEN, COLOR_BLACK);  // bash commands - green
+    init_pair(12, COLOR_CYAN, COLOR_BLACK);   // bash keywords - cyan
+    init_pair(13, COLOR_YELLOW, COLOR_BLACK); // script definitions - yellow
+    init_pair(14, COLOR_MAGENTA, COLOR_BLACK); // operators - magenta
+    init_pair(15, COLOR_WHITE, COLOR_BLACK); // comments - white (will be rendered as comments)
     init_pair(100, COLOR_WHITE,COLOR_BLACK); 
     init_pair(110, COLOR_BLACK,COLOR_WHITE);
     raw();
@@ -1572,11 +1598,12 @@ int main(int argc, char* argv[]) {
                 break;
             case 274:
                 inlineSuggestionNPredict++;
+                break;
             case 273:
                 if (inlineSuggestionNPredict > 0){
                     inlineSuggestionNPredict--;
                 }
-                
+                break;
             case 1:
                 selectionActive = true;
                 selStartX = 0;
@@ -1617,6 +1644,9 @@ int main(int argc, char* argv[]) {
                     cursorX = 0;
                     unsavedChanges = true;
                 }
+                break;
+            case 272:
+                debugWrite(strVecToString(customCommandsBuiltIn));
                 break;
             case KEY_UP:
                 if (cursorY > 0) cursorY--;

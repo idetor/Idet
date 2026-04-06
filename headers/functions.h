@@ -10,7 +10,7 @@
 #include <nlohmann/json.hpp>
 #include <string_view>
 #include <iostream>
-
+#include "light/bash.hpp"
 
 
 struct cacheAction {
@@ -641,3 +641,9 @@ inline size_t getUtf8CharStart(const std::string& str, size_t pos) {
     }
     return pos;
 }
+
+
+
+
+
+// NOTE: colordraw is deprecated - use draw() function in main.cpp instead which now includes syntax highlighting
