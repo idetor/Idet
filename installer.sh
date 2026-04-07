@@ -20,7 +20,7 @@ git pull
 
 echo "Compiling main.cpp to editor..."
     
-g++ main.cpp  -lncursesw -lcurl -o idet
+g++ -std=c++20 main.cpp -lncursesw -lcurl -o idet
   
 
 #mkdir -p ~/.config/idet
@@ -29,3 +29,4 @@ g++ main.cpp  -lncursesw -lcurl -o idet
 chmod a+x idet
 cp -f idet /usr/local/bin/
 echo "Installation complete. Run 'idet' or './idet' to start the editor."
+
