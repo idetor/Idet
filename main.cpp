@@ -65,6 +65,7 @@ int SearchLastFoundX = -1;
 int SearchLastFoundY = -1;
 std::vector<posCords> searchResults;
 int searchcount = 0;
+std::string detectedLang = "";
 
 // AI Vars
 std::string modelPath = "/var/models/tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf";
@@ -82,6 +83,16 @@ bool showInlineSuggestion = false;
 bool inlineSuggestionExists = false;
 bool allowInlineSuggestion = true;
 bool autoSuggestionTriggered = false;
+
+void detectLanguage(std::vector<std::string>& buffer, std::string detectedLang){
+    std::string firstLine = buffer[0];
+    if (firstLine == "#!/bin/bash" || firstLine == "#!/bin/sh"){
+        
+        detectedLang = "bash";
+    }
+    debugWrite("first Line:"+ buffer[0]);
+}
+
 
 std::string getPossibleCompleteChar(char givenChar , std::vector<char>& openCharList){
     std::string backString = "";
@@ -370,8 +381,9 @@ void draw(int cursorY, int cursorX, int& rowOffset,
     std::vector<std::string> fileList = std::vector<std::string>() , int activeBufferIndex = 0)
 {
 erase();
-commentPositions.clear(); // Clear comment positions for this draw cycle
-
+if(detectedLang == "bash"){
+    commentPositions.clear(); // Clear comment positions for this draw cycle
+}
 int lineNumberWidth = std::to_string(buffer.size()).length() + 2;
 int maxRows = LINES - 2; // leave last line for status bar
 int visibleWidth = COLS - lineNumberWidth;
@@ -446,9 +458,10 @@ for (int i = 0; i < maxRows && (rowOffset + i) < (int)buffer.size(); ++i) {
     std::string& line = buffer[fileLine];
 
     // Detect syntax highlighting affiliation for this line
-    syntaxHighlightingAffiliation.clear();
-    detectInLineAffiliation(line, fileLine);
-    
+    if (detectedLang == "bash"){
+        syntaxHighlightingAffiliation.clear();
+        detectInLineAffiliation(line, fileLine);
+    }
     std::wstring wline = utf8_to_wstring(line);
 
     int startX = colOffset;
@@ -474,6 +487,7 @@ for (int i = 0; i < maxRows && (rowOffset + i) < (int)buffer.size(); ++i) {
         int colorPair = contentScheme; // default content color
         
         // Check if in comment - if so, use comment color regardless of content
+        if (detectedLang == "bash"){
         if (isInComment(x, fileLine)) {
             colorPair = 15; // comments (gray/dark)
         } else if (isCommand(x, fileLine)) {
@@ -484,6 +498,7 @@ for (int i = 0; i < maxRows && (rowOffset + i) < (int)buffer.size(); ++i) {
             colorPair = 13; // function definitions (yellow)
         } else if (isOperatorAt(x, fileLine)) {
             colorPair = 14; // operators (magenta)
+        }
         }
 
         attron(COLOR_PAIR(colorPair));
@@ -1036,6 +1051,9 @@ int main(int argc, char* argv[]) {
             inactiveBuffer.push_back(tmpFileBuffer);
         }
     }
+    // detect lang
+    detectLanguage(buffer, detectedLang);
+
 
     // Initialize ncurses
     initscr();
