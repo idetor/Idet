@@ -152,6 +152,10 @@ std::vector<std::string> inScriptDefinitions;
 // Track comment positions per line: {lineNum, startPos}
 std::vector<std::pair<int, int>> commentPositions;
 
+void initializeBashCommands() {
+    getAllCommands(customCommandsBuiltIn);
+}
+
 bool isOperator(const std::string& word) {
     return std::find(bashOperators.begin(), bashOperators.end(), word) != bashOperators.end();
 }

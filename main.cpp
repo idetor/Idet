@@ -1030,6 +1030,10 @@ int main(int argc, char* argv[]) {
     else {
         debugWrite("!!!No config file found at " + configPath);
     }
+    
+    // Initialize bash commands for syntax highlighting
+    initializeBashCommands();
+    
     debugWrite("Loading File: " + filename);
     if (checkFileExistance(filename)){
         loadFile(filename);
