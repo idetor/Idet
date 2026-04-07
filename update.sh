@@ -9,13 +9,7 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR" || exit 1
 
-apt update
-apt install -y libncurses-dev
-apt install -y libcurl4-openssl-dev
-apt install -y nlohmann-json3-dev
-apt install -y g++
-apt install -y cmake
-
+rm -rf ./idet
 git pull
 
 echo "Compiling main.cpp to idet..."
@@ -23,8 +17,6 @@ echo "Compiling main.cpp to idet..."
 g++ -std=c++20 main.cpp -lncursesw -lcurl -o idet
   
 
-#mkdir -p ~/.config/idet
-#echo "{}" > ~/.config/idet/config.json
 
 chmod a+x idet
 cp -f idet /usr/local/bin/
