@@ -11,7 +11,7 @@
 #include <nlohmann/json.hpp>
 #include <string_view>
 #include <iostream>
-
+#include <thread>
 // provides help for bash syntax highlighting and autocompletion
 
 struct itemAffiliation {
@@ -31,12 +31,12 @@ struct SaveAffiliation {
 };
 
 std::vector<SaveAffiliation> syntaxHighlightingAffiliation;
-std::vector<std::string> getAllCommands() {
-    std::vector<std::string> commands;
+
+void getAllCommands(std::vector<std::string>& commands) {
     std::array<char, 256> buffer;
 
     FILE* pipe = popen("bash -c 'compgen -c'", "r");
-    if (!pipe) return commands;
+    if (!pipe) return;
 
     while (fgets(buffer.data(), buffer.size(), pipe) != nullptr) {
         std::string line(buffer.data());
@@ -48,7 +48,6 @@ std::vector<std::string> getAllCommands() {
     }
 
     pclose(pipe);
-    return commands;
 }
 
 std::vector<std::string> builtInCommands = {
@@ -147,7 +146,7 @@ std::vector<std::string> builtInKeyword = {
 std::vector<std::string> bashOperators = {
     "|", "||", "&", "&&", ";", ";;", "(", ")", "{", "}", "[", "]", "<", ">", "<<", ">>"
 };
-std::vector<std::string> customCommandsBuiltIn = getAllCommands();
+std::vector<std::string> customCommandsBuiltIn;
 std::vector<std::string> inScriptDefinitions;
 
 // Track comment positions per line: {lineNum, startPos}
