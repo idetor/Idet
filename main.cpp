@@ -1030,10 +1030,6 @@ int main(int argc, char* argv[]) {
     else {
         debugWrite("!!!No config file found at " + configPath);
     }
-    
-    // Initialize bash commands for syntax highlighting
-    initializeBashCommands();
-    
     debugWrite("Loading File: " + filename);
     if (checkFileExistance(filename)){
         loadFile(filename);
@@ -1082,6 +1078,10 @@ int main(int argc, char* argv[]) {
     raw();
     keypad(stdscr, TRUE);
     noecho();
+    
+    // Start background thread to load bash commands for syntax highlighting
+    std::thread commandLoader([]{ initializeBashCommands(); });
+    commandLoader.detach();
     nodelay(stdscr, TRUE);
 
     int cursorX = 0, cursorY = 0;
