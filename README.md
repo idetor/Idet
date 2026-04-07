@@ -2,12 +2,12 @@
 Simple terminal text editor.
 
 # Installation
-Install via the installer:
+## Install via the installer:
 ```bash
 sudo chmod a+x ./installer.sh
 ./installer.sh
 ```
-Manual install:\
+## Manual install:\
 Install dependencies:
 ```bash
 sudo apt install libncurses-dev
