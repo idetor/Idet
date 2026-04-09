@@ -374,7 +374,13 @@ void showHelp() {
     refresh();
 
     // Wait for user to press any key
-    getch();
+    while (true){
+        int keyPressed =     getch();
+        if (keyPressed > 0){
+            break;
+        }
+    }
+
 }
 
 void draw(int cursorY, int cursorX, int& rowOffset, 
