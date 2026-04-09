@@ -1603,17 +1603,13 @@ int main(int argc, char* argv[]) {
             case 330:
                 if (cursorY >= 0 && cursorY < static_cast<int>(buffer.size())) {
                     std::string &line = buffer[cursorY];
-                    int len = static_cast<int>(line.size());
-                    if (cursorX > 0 && cursorX <= len) {
-                        // Backspace: delete UTF-8 character before cursor
-                        size_t charStart = getUtf8CharStart(line, cursorX);
-                        int charLen = getUtf8CharLen(line, charStart);
-                        line.erase(charStart, charLen);
-                        if (cursorX < 0) cursorX = 0;
-                    } else if (cursorX >= 0 && cursorX < len) {
+                    int charCount = getUtf8StrLen(line);
+                    if (cursorX >= 0 && cursorX < charCount) {
                         // Delete: remove UTF-8 character at cursor
-                        int charLen = getUtf8CharLen(line, cursorX);
-                        line.erase(cursorX, charLen > 0 ? charLen : 1);
+                        std::size_t bytePos = char_to_byte_index(line, cursorX);
+                        int charLen = getUtf8CharLen(line, bytePos);
+                        debugWrite("Char len: " + std::to_string(charLen));
+                        line.erase(bytePos, charLen > 0 ? charLen : 1);
                     }
                     unsavedChanges = true;
                 }
@@ -1713,17 +1709,7 @@ int main(int argc, char* argv[]) {
                 selectionActive = false;
                 break;
             case KEY_RIGHT: {
-                int charCount = 0;
-                size_t bytePos = 0;
-                while (bytePos < buffer[cursorY].size()) {
-                    unsigned char c = static_cast<unsigned char>(buffer[cursorY][bytePos]);
-                    if ((c & 0x80) == 0) bytePos += 1;
-                    else if ((c & 0xE0) == 0xC0) bytePos += 2;
-                    else if ((c & 0xF0) == 0xE0) bytePos += 3;
-                    else if ((c & 0xF8) == 0xF0) bytePos += 4;
-                    else bytePos += 1;
-                    charCount++;
-                }
+                int charCount = getUtf8StrLen(buffer[cursorY]);
                 if (cursorX < charCount) cursorX++;
                 showInlineSuggestion = false;
                 inlineSuggestionExists = false;
@@ -1737,19 +1723,8 @@ int main(int argc, char* argv[]) {
                 selectionActive = false;
                 break;
             case KEY_END: {
-                int charCount = 0;
-                size_t bytePos = 0;
                 selectionActive = false;
-                while (bytePos < buffer[cursorY].size()) {
-                    unsigned char c = static_cast<unsigned char>(buffer[cursorY][bytePos]);
-                    if ((c & 0x80) == 0) bytePos += 1;
-                    else if ((c & 0xE0) == 0xC0) bytePos += 2;
-                    else if ((c & 0xF0) == 0xE0) bytePos += 3;
-                    else if ((c & 0xF8) == 0xF0) bytePos += 4;
-                    else bytePos += 1;
-                    charCount++;
-                }
-                cursorX = charCount;
+                cursorX = getUtf8StrLen(buffer[cursorY]);
                 showInlineSuggestion = false;
                 inlineSuggestionExists = false;
                 break;
@@ -1776,18 +1751,7 @@ int main(int argc, char* argv[]) {
                     buffer[cursorY].erase(prevBytePos, bytePos - prevBytePos);
                     cursorX--;
                 } else if (cursorY > 0) {
-                    int prevLineCharCount = 0;
-                    size_t bytePos = 0;
-                    while (bytePos < buffer[cursorY - 1].size()) {
-                        unsigned char c = static_cast<unsigned char>(buffer[cursorY - 1][bytePos]);
-                        if ((c & 0x80) == 0) bytePos += 1;
-                        else if ((c & 0xE0) == 0xC0) bytePos += 2;
-                        else if ((c & 0xF0) == 0xE0) bytePos += 3;
-                        else if ((c & 0xF8) == 0xF0) bytePos += 4;
-                        else bytePos += 1;
-                        prevLineCharCount++;
-                    }
-                    cursorX = prevLineCharCount;
+                    cursorX = getUtf8StrLen(buffer[cursorY - 1]);
                     buffer[cursorY - 1] += buffer[cursorY];
                     buffer.erase(buffer.begin() + cursorY);
                     cursorY--;
