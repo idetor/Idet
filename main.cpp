@@ -211,6 +211,8 @@ void displayInlineSuggestion(const std::vector<std::string>& inlineBuffer,
     attroff(COLOR_PAIR(10));
 }
 
+
+
 static std::wstring utf8_to_wstring(const std::string &s) {
     if (s.empty()) return L"";
 
@@ -927,6 +929,10 @@ void changeActiveBuffer(
     debugWrite("Switched to buffer index: " + std::to_string(newActiveIndex));
 }
 
+void reloadFile(std::string filename, std::vector<std::string>& buffer){
+    buffer.clear();
+    loadFile(filename,buffer);
+}
 
 int main(int argc, char* argv[]) {
     // Set locale for UTF-8 support
@@ -1627,6 +1633,13 @@ int main(int argc, char* argv[]) {
                             std::to_string(selEndX) + ")");
                 }
                 break;
+            case 18:
+                debugWrite("Reloading File");
+                erase();
+                reloadFile(filename,buffer);
+
+                
+                continue;
             case 274:
                 inlineSuggestionNPredict++;
                 break;
