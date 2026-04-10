@@ -372,10 +372,13 @@ void showHelp() {
     mvprintw(5, 0, "strg + f to search");
     mvprintw(6, 0, "strg + q to quit");
     mvprintw(7, 0, "F1 to open help");
-    mvprintw(8, 0, "F7 to open AI settings");
-    mvprintw(9, 0, "Shift + arrowkeys to select text");
-    mvprintw(10, 0, "Use --multifile to open mutliple files");    
-    mvprintw(11, 0, "strg + f2/f3 to switch between files in multifile mode");
+    mvprintw(8, 0, "F2 to change color scheme");
+    mvprintw(9, 0, "F3 to enable/disable selection(in case of shift + arrowkeys not working)");
+    mvprintw(10, 0, "F7 to open AI settings");
+    mvprintw(11, 0, "Shift + arrowkeys to select text");
+    mvprintw(12, 0, "Use --multifile to open mutliple files");    
+    mvprintw(13, 0, "strg + f2/f3 to switch between files in multifile mode");
+    mvprintw(15, 0, "Version: v0.1.2-alpha");
 
     // Turn off color
     attroff(COLOR_PAIR(lineNumberScheme));
