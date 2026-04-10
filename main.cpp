@@ -373,6 +373,7 @@ void showHelp() {
     mvprintw(6, 0, "strg + q to quit");
     mvprintw(7, 0, "F1 to open help");
     mvprintw(8, 0, "F7 to open AI settings");
+    mvprintw(9, 0, "Shift + arrowkeys to select text");
     mvprintw(10, 0, "Use --multifile to open mutliple files");    
     mvprintw(11, 0, "strg + f2/f3 to switch between files in multifile mode");
 

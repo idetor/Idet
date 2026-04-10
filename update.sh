@@ -10,6 +10,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR" || exit 1
 
 rm -rf ./idet
+echo "Pulling latest changes from GitHub..."
 git pull
 
 echo "Compiling main.cpp to idet..."

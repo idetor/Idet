@@ -2,7 +2,7 @@
 Simple terminal text editor.
 
 # Installation
-## Install via the installer:
+## Install via the installer (recomended):
 ```bash
 sudo chmod a+x ./installer.sh
 ./installer.sh
