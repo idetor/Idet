@@ -1219,7 +1219,21 @@ int main(int argc, char* argv[]) {
                 redo(cursorX, cursorY);
                 break;
             case 569:
-            debugWrite("CTRL+Tab pressed - Switch to next buffer with active buffer index: " + std::to_string(activeBufferIndex));
+                debugWrite("CTRL+Tab pressed - Switch to next buffer with active buffer index: " + std::to_string(activeBufferIndex));
+                    if (multiFileMode && activeBufferIndex < inactiveBuffer.size() - 1) {
+                        changeActiveBuffer(inactiveBuffer,buffer, activeBufferIndex, activeBufferIndex + 1);
+                        filename = fileList[activeBufferIndex];
+                        //activeBufferIndex++;
+                        cursorX = 0;
+                        cursorY = 0;
+                        break;
+                    }
+                    else{
+                        debugWrite("No next buffer to switch to");
+                        break;
+                    }
+            case 290:
+                debugWrite("CTRL+Tab pressed - Switch to next buffer with active buffer index: " + std::to_string(activeBufferIndex));
                     if (multiFileMode && activeBufferIndex < inactiveBuffer.size() - 1) {
                         changeActiveBuffer(inactiveBuffer,buffer, activeBufferIndex, activeBufferIndex + 1);
                         filename = fileList[activeBufferIndex];
@@ -1233,7 +1247,21 @@ int main(int argc, char* argv[]) {
                         break;
                     }
             case 554:
-            debugWrite("CTRL+Shift+Tab pressed - Switch to previous buffer with active buffer index: " + std::to_string(activeBufferIndex));
+                debugWrite("CTRL+Shift+Tab pressed - Switch to previous buffer with active buffer index: " + std::to_string(activeBufferIndex));
+                    if (multiFileMode && activeBufferIndex > 0) {
+                        changeActiveBuffer(inactiveBuffer,buffer, activeBufferIndex,activeBufferIndex - 1);
+                        filename = fileList[activeBufferIndex];
+                        //activeBufferIndex--;
+                        cursorX = 0;
+                        cursorY = 0;
+                        break;
+                    }
+                    else{
+                        debugWrite("No previous buffer to switch to");
+                        break;
+                    }
+            case 291:
+                debugWrite("CTRL+Shift+Tab pressed - Switch to previous buffer with active buffer index: " + std::to_string(activeBufferIndex));
                     if (multiFileMode && activeBufferIndex > 0) {
                         changeActiveBuffer(inactiveBuffer,buffer, activeBufferIndex,activeBufferIndex - 1);
                         filename = fileList[activeBufferIndex];

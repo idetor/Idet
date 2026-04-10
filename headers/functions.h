@@ -13,6 +13,16 @@
 //#include "light/bash.hpp"
 
 
+struct fileElements {
+    int lastModified;
+    bool isChanged;
+    int selStartX;
+    int selStartY;
+    int selEndX;
+    int selEndY;
+    
+};
+
 struct cacheAction {
     std::string action;
     int affectedStartLine;           

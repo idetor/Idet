@@ -6,3 +6,4 @@ tmpf/
 llama.cpp/
 idet
 templateconf.json
+.gitignore
