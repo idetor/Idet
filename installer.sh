@@ -10,6 +10,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR" || exit 1
 
 apt update
+apt install -y git
 apt install -y libncurses-dev
 apt install -y libcurl4-openssl-dev
 apt install -y nlohmann-json3-dev
