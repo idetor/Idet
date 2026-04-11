@@ -20,7 +20,6 @@ struct fileElements {
     int selStartY;
     int selEndX;
     int selEndY;
-    
 };
 
 struct cacheAction {
@@ -33,6 +32,18 @@ struct cacheAction {
     int cursorY;
     int pasteSize;  
 };
+
+std::string fileElementsElementToString(fileElements FileElement) {
+    std::string returnMessage;
+    returnMessage.append("lastModified : " + std::to_string(FileElement.lastModified) + "\n");
+    returnMessage.append("isChanged : " + std::string(FileElement.isChanged ? "true" : "false") + "\n");
+    returnMessage.append("selStartX : " + std::to_string(FileElement.selStartX) + "\n");
+    returnMessage.append("selStartY : " + std::to_string(FileElement.selStartY) + "\n");
+    returnMessage.append("selEndX : " + std::to_string(FileElement.selEndX) + "\n");
+    returnMessage.append("selEndY : " + std::to_string(FileElement.selEndY) + "\n");
+    
+    return returnMessage;
+}
 
 
 inline cacheAction createDiff(

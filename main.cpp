@@ -14,6 +14,7 @@
 #include <iostream>
 #include <unistd.h>
 #include "headers/light/bash.hpp"
+#include <sys/stat.h>
 //#include "headers/LlamaClient.hpp"
 #include "headers/networkAIApi.hpp"
 #include "headers/functions.h"
@@ -66,6 +67,7 @@ int SearchLastFoundY = -1;
 std::vector<posCords> searchResults;
 int searchcount = 0;
 std::string detectedLang = "";
+std::vector<fileElements> fileElementsBuffer;
 
 // AI Vars
 std::string modelPath = "/var/models/tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf";
@@ -84,6 +86,33 @@ bool inlineSuggestionExists = false;
 bool allowInlineSuggestion = true;
 bool autoSuggestionTriggered = false;
 
+
+
+
+void changeFileElements(std::vector<fileElements>& fileElementsBuffer,int activeBufferIndex, int changingToIndex, int& lastModifiedTime, bool& unsavedChanges, int& selStartX, int& selStartY, int& selEndX , int& selEndY){
+    fileElementsBuffer[activeBufferIndex].lastModified = lastModifiedTime;
+    fileElementsBuffer[activeBufferIndex].isChanged = unsavedChanges;
+    fileElementsBuffer[activeBufferIndex].selStartX = selStartX;
+    fileElementsBuffer[activeBufferIndex].selStartY = selStartY;
+    fileElementsBuffer[activeBufferIndex].selEndX = selEndX;
+    fileElementsBuffer[activeBufferIndex].selEndY = selEndY;
+    
+    lastModifiedTime = fileElementsBuffer[changingToIndex].lastModified;
+    unsavedChanges = fileElementsBuffer[changingToIndex].isChanged;
+    selStartX = fileElementsBuffer[changingToIndex].selStartX;
+    selStartY = fileElementsBuffer[changingToIndex].selStartY;
+    selEndX = fileElementsBuffer[changingToIndex].selEndX;
+    selEndY = fileElementsBuffer[changingToIndex].selEndY;
+}
+void SetInfileElements(std::vector<fileElements>& fileElementsBuffer, int Index) {
+    lastModifiedTime = fileElementsBuffer[Index].lastModified;
+    unsavedChanges = fileElementsBuffer[Index].isChanged;
+    selStartX = fileElementsBuffer[Index].selStartX;
+    selStartY = fileElementsBuffer[Index].selStartY;
+    selEndX = fileElementsBuffer[Index].selEndX;
+    selEndY = fileElementsBuffer[Index].selEndY;
+}
+
 void detectLanguage(std::vector<std::string>& buffer, std::string& detectedLang){
     std::string firstLine = buffer[0];
     if (stringContainsString(firstLine, "#!/bin/bash")|| stringContainsString(firstLine, "#!/bin/sh")){
@@ -95,7 +124,6 @@ void detectLanguage(std::vector<std::string>& buffer, std::string& detectedLang)
         debugWrite("Detected language: " + detectedLang);
     }
 }
-
 
 std::string getPossibleCompleteChar(char givenChar , std::vector<char>& openCharList){
     std::string backString = "";
@@ -210,8 +238,6 @@ void displayInlineSuggestion(const std::vector<std::string>& inlineBuffer,
 
     attroff(COLOR_PAIR(10));
 }
-
-
 
 static std::wstring utf8_to_wstring(const std::string &s) {
     if (s.empty()) return L"";
@@ -355,8 +381,6 @@ std::string formatTime(int time) {
     strftime(buffer, 26, "%Y-%m-%d %H:%M:%S", tm_info);
     return std::string(buffer);
 }
-
-
 
 void showHelp() {
     erase();  // clear the screen
@@ -915,6 +939,25 @@ void getInlineSuggestion(int cursorX, int cursorY, std::vector<std::string>& buf
         showInlineSuggestion = true;
 }
 
+void loadInfileElements(std::vector<fileElements>& fileElementsBuffer, std::string handleFile) {
+    struct stat fileInfo;
+    fileElements tmpFileElement;
+    if (stat(handleFile.c_str(), &fileInfo) == 0) {
+        
+        tmpFileElement.lastModified = fileInfo.st_mtime;
+
+    } else {
+        std::cerr << "Error: Could not retrieve file information for " << handleFile << std::endl;
+        tmpFileElement.lastModified = 0;
+    }
+    tmpFileElement.isChanged = false;
+    tmpFileElement.selEndX = 0;
+    tmpFileElement.selEndY = 0;
+    tmpFileElement.selStartX = 0;
+    tmpFileElement.selStartY = 0;
+    fileElementsBuffer.push_back(tmpFileElement);
+}
+
 void changeActiveBuffer(
     std::vector<std::vector<std::string>>& inactiveBuffer,
     std::vector<std::string>& activeBuffer,
@@ -1035,6 +1078,7 @@ int main(int argc, char* argv[]) {
         }
         debugWrite("Files to load: " + strVecToString(fileList));
         filename = fileList[0]; // set first file as main buffer file
+        loadInfileElements(fileElementsBuffer, filename);
     }
 
     if (!debugTTY.empty()) {
@@ -1075,6 +1119,8 @@ int main(int argc, char* argv[]) {
             std::vector<std::string> tmpFileBuffer;
             loadFile(handlingFile, tmpFileBuffer);
             inactiveBuffer.push_back(tmpFileBuffer);
+            loadInfileElements(fileElementsBuffer, handlingFile);
+            debugWrite("Loaded in: " + fileElementsElementToString(fileElementsBuffer[i]));
         }
     }
     // detect lang
@@ -1117,7 +1163,7 @@ int main(int argc, char* argv[]) {
     // Initialize lastEditTime to current time
     auto initTime = std::chrono::system_clock::now();
     lastEditTime = std::chrono::system_clock::to_time_t(initTime);
-
+    SetInfileElements(fileElementsBuffer, activeBufferIndex);
     while (true) {
         // Scroll logic
         int maxVisibleRows = LINES - 2;
@@ -1232,6 +1278,7 @@ int main(int argc, char* argv[]) {
             case 569:
                 debugWrite("CTRL+Tab pressed - Switch to next buffer with active buffer index: " + std::to_string(activeBufferIndex));
                     if (multiFileMode && activeBufferIndex < inactiveBuffer.size() - 1) {
+                        changeFileElements(fileElementsBuffer,activeBufferIndex,activeBufferIndex + 1,lastModifiedTime,unsavedChanges,selStartX,selStartY,selEndX,selEndY);
                         changeActiveBuffer(inactiveBuffer,buffer, activeBufferIndex, activeBufferIndex + 1);
                         filename = fileList[activeBufferIndex];
                         //activeBufferIndex++;
@@ -1246,6 +1293,7 @@ int main(int argc, char* argv[]) {
             case 291:
                 debugWrite("CTRL+Tab pressed - Switch to next buffer with active buffer index: " + std::to_string(activeBufferIndex));
                     if (multiFileMode && activeBufferIndex < inactiveBuffer.size() - 1) {
+                        changeFileElements(fileElementsBuffer,activeBufferIndex,activeBufferIndex + 1,lastModifiedTime,unsavedChanges,selStartX,selStartY,selEndX,selEndY);
                         changeActiveBuffer(inactiveBuffer,buffer, activeBufferIndex, activeBufferIndex + 1);
                         filename = fileList[activeBufferIndex];
                         //activeBufferIndex++;
@@ -1260,6 +1308,7 @@ int main(int argc, char* argv[]) {
             case 554:
                 debugWrite("CTRL+Shift+Tab pressed - Switch to previous buffer with active buffer index: " + std::to_string(activeBufferIndex));
                     if (multiFileMode && activeBufferIndex > 0) {
+                        changeFileElements(fileElementsBuffer,activeBufferIndex,activeBufferIndex - 1,lastModifiedTime,unsavedChanges,selStartX,selStartY,selEndX,selEndY);
                         changeActiveBuffer(inactiveBuffer,buffer, activeBufferIndex,activeBufferIndex - 1);
                         filename = fileList[activeBufferIndex];
                         //activeBufferIndex--;
@@ -1274,6 +1323,7 @@ int main(int argc, char* argv[]) {
             case 290:
                 debugWrite("CTRL+Shift+Tab pressed - Switch to previous buffer with active buffer index: " + std::to_string(activeBufferIndex));
                     if (multiFileMode && activeBufferIndex > 0) {
+                        changeFileElements(fileElementsBuffer,activeBufferIndex,activeBufferIndex - 1,lastModifiedTime,unsavedChanges,selStartX,selStartY,selEndX,selEndY);
                         changeActiveBuffer(inactiveBuffer,buffer, activeBufferIndex,activeBufferIndex - 1);
                         filename = fileList[activeBufferIndex];
                         //activeBufferIndex--;
