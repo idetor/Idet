@@ -109,6 +109,11 @@ std::string llama_completion_content(const std::string& prompt,
                                      const std::string& url = "http://localhost:8080/v1/completion",
                                      const std::string& nPredict = "5",
                                      LogFn logger = nullptr) {
+    bool llamacppState = pingLlama(url, logger);
+    if (!llamacppState) {
+        if (logger) logger("LlamaCPP API is not reachable at " + url);
+        return "";
+    }
     const std::string raw = llama_completion(prompt, url, nPredict, logger);
     if (raw.empty()) return "";
 
@@ -189,6 +194,11 @@ std::string ollama_completion_content(const std::string& prompt,
                                       const std::string& nPredict = "5",
                                       LogFn logger = nullptr,
                                       const std::string& model = "llama3") {
+    bool ollamaState = pingOllama(url, logger);
+    if (!ollamaState) {
+        if (logger) logger("Ollama API is not reachable at " + url);
+        return "";
+    }
     const std::string raw = ollama_completion(prompt, url, nPredict, logger, model);
     if (raw.empty()) return "";
 
