@@ -301,12 +301,7 @@ void loadFile(const std::string& filename, std::vector<std::string>& targetBuffe
     if (targetBuffer.empty()) targetBuffer.push_back("");
 
     try {
-        auto ftime = std::filesystem::last_write_time(filename);
-        auto sctp = std::chrono::time_point_cast<std::chrono::system_clock::duration>(
-            ftime - decltype(ftime)::clock::now()
-            + std::chrono::system_clock::now()
-        );
-        lastModifiedTime = std::chrono::system_clock::to_time_t(sctp);
+        lastModifiedTime = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
     } catch (...) {
         lastModifiedTime = 0;
     }
@@ -321,11 +316,7 @@ void saveFile(const std::string& filename ) {
     std::ofstream file(filename);
     for (auto& line : buffer) file << line << "\n";
     
-    auto ftime = std::filesystem::last_write_time(filename);
-    auto sctp = std::chrono::time_point_cast<std::chrono::system_clock::duration>(
-                    ftime - decltype(ftime)::clock::now()
-                    + std::chrono::system_clock::now());
-    lastModifiedTime = std::chrono::system_clock::to_time_t(sctp); // time_t
+    lastModifiedTime = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now()); // time_t
     unsavedChanges = false;
 }
 
