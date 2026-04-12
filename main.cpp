@@ -651,9 +651,9 @@ void drawAISettings(std::string authToken, std::string llamaCompletionHost, std:
     // Print AI settings
     mvprintw(1, 0, "AI Provider: %s", AiProvider.c_str());
     mvprintw(2, 0, "Auth Token: %s", authToken.empty() ? "(none)" : "(set)");
-    mvprintw(3, 0, "Llama Host: %s", llamaCompletionHost.c_str());
-    mvprintw(4, 0, "Llama n_predict: %s", llamaCompletionNPredict.c_str());
-    mvprintw(5, 0, "Ollama Model: %s", ollamaModel.c_str());
+    mvprintw(3, 0, "AI Host: %s", llamaCompletionHost.c_str());
+    mvprintw(4, 0, "AI n_predict: %s", llamaCompletionNPredict.c_str());
+    mvprintw(5, 0, "AI Model (only Ollama): %s", ollamaModel.c_str());
     mvprintw(6, 0, "Inline Suggestion Tokens: %d", inlineSuggestionNPredict);
     mvprintw(7, 0, "Auto Suggestion Delay: %d seconds", AUTO_SUGGESTION_DELAY);
 
