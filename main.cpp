@@ -89,28 +89,33 @@ bool autoSuggestionTriggered = false;
 
 
 
-void changeFileElements(std::vector<fileElements>& fileElementsBuffer,int activeBufferIndex, int changingToIndex, int& lastModifiedTime, bool& unsavedChanges, int& selStartX, int& selStartY, int& selEndX , int& selEndY){
+void changeFileElements(std::vector<fileElements>& fileElementsBuffer,int activeBufferIndex, int changingToIndex, int& lastModifiedTime, bool& unsavedChanges, int& selStartX, int& selStartY, int& selEndX , int& selEndY , int& cursorX , int& cursorY){
     fileElementsBuffer[activeBufferIndex].lastModified = lastModifiedTime;
     fileElementsBuffer[activeBufferIndex].isChanged = unsavedChanges;
     fileElementsBuffer[activeBufferIndex].selStartX = selStartX;
     fileElementsBuffer[activeBufferIndex].selStartY = selStartY;
     fileElementsBuffer[activeBufferIndex].selEndX = selEndX;
     fileElementsBuffer[activeBufferIndex].selEndY = selEndY;
-    
+    fileElementsBuffer[activeBufferIndex].cursorX = cursorX;
+    fileElementsBuffer[activeBufferIndex].cursorY = cursorY;
     lastModifiedTime = fileElementsBuffer[changingToIndex].lastModified;
     unsavedChanges = fileElementsBuffer[changingToIndex].isChanged;
     selStartX = fileElementsBuffer[changingToIndex].selStartX;
     selStartY = fileElementsBuffer[changingToIndex].selStartY;
     selEndX = fileElementsBuffer[changingToIndex].selEndX;
     selEndY = fileElementsBuffer[changingToIndex].selEndY;
+    cursorX = fileElementsBuffer[changingToIndex].cursorX;
+    cursorY = fileElementsBuffer[changingToIndex].cursorY;
 }
-void SetInfileElements(std::vector<fileElements>& fileElementsBuffer, int Index) {
+void SetInfileElements(std::vector<fileElements>& fileElementsBuffer, int Index , int& lastModifiedTime, bool& unsavedChanges, int& selStartX, int& selStartY, int& selEndX, int& selEndY, int& cursorX, int& cursorY) {
     lastModifiedTime = fileElementsBuffer[Index].lastModified;
     unsavedChanges = fileElementsBuffer[Index].isChanged;
     selStartX = fileElementsBuffer[Index].selStartX;
     selStartY = fileElementsBuffer[Index].selStartY;
     selEndX = fileElementsBuffer[Index].selEndX;
     selEndY = fileElementsBuffer[Index].selEndY;
+    cursorX = fileElementsBuffer[Index].cursorX;
+    cursorY = fileElementsBuffer[Index].cursorY;
 }
 
 void detectLanguage(std::vector<std::string>& buffer, std::string& detectedLang){
@@ -946,6 +951,8 @@ void loadInfileElements(std::vector<fileElements>& fileElementsBuffer, std::stri
     tmpFileElement.selEndY = 0;
     tmpFileElement.selStartX = 0;
     tmpFileElement.selStartY = 0;
+    tmpFileElement.cursorX = 0;
+    tmpFileElement.cursorY = 0;
     fileElementsBuffer.push_back(tmpFileElement);
 }
 
@@ -1168,7 +1175,7 @@ int main(int argc, char* argv[]) {
     auto initTime = std::chrono::system_clock::now();
     lastEditTime = std::chrono::system_clock::to_time_t(initTime);
     if(multiFileMode){
-        SetInfileElements(fileElementsBuffer, activeBufferIndex);
+        SetInfileElements(fileElementsBuffer, activeBufferIndex, lastModifiedTime, unsavedChanges, selStartX, selStartY, selEndX, selEndY, cursorX, cursorY);
     }
     
     while (true) {
@@ -1285,12 +1292,11 @@ int main(int argc, char* argv[]) {
             case 569:
                 debugWrite("CTRL+Tab pressed - Switch to next buffer with active buffer index: " + std::to_string(activeBufferIndex));
                     if (multiFileMode && activeBufferIndex < inactiveBuffer.size() - 1) {
-                        changeFileElements(fileElementsBuffer,activeBufferIndex,activeBufferIndex + 1,lastModifiedTime,unsavedChanges,selStartX,selStartY,selEndX,selEndY);
+                        changeFileElements(fileElementsBuffer,activeBufferIndex,activeBufferIndex + 1,lastModifiedTime,unsavedChanges,selStartX,selStartY,selEndX,selEndY, cursorX, cursorY);
                         changeActiveBuffer(inactiveBuffer,buffer, activeBufferIndex, activeBufferIndex + 1);
                         filename = fileList[activeBufferIndex];
                         //activeBufferIndex++;
-                        cursorX = 0;
-                        cursorY = 0;
+
                         break;
                     }
                     else{
@@ -1300,12 +1306,11 @@ int main(int argc, char* argv[]) {
             case 291:
                 debugWrite("CTRL+Tab pressed - Switch to next buffer with active buffer index: " + std::to_string(activeBufferIndex));
                     if (multiFileMode && activeBufferIndex < inactiveBuffer.size() - 1) {
-                        changeFileElements(fileElementsBuffer,activeBufferIndex,activeBufferIndex + 1,lastModifiedTime,unsavedChanges,selStartX,selStartY,selEndX,selEndY);
+                        changeFileElements(fileElementsBuffer,activeBufferIndex,activeBufferIndex + 1,lastModifiedTime,unsavedChanges,selStartX,selStartY,selEndX,selEndY, cursorX, cursorY);
                         changeActiveBuffer(inactiveBuffer,buffer, activeBufferIndex, activeBufferIndex + 1);
                         filename = fileList[activeBufferIndex];
                         //activeBufferIndex++;
-                        cursorX = 0;
-                        cursorY = 0;
+
                         break;
                     }
                     else{
@@ -1315,12 +1320,11 @@ int main(int argc, char* argv[]) {
             case 554:
                 debugWrite("CTRL+Shift+Tab pressed - Switch to previous buffer with active buffer index: " + std::to_string(activeBufferIndex));
                     if (multiFileMode && activeBufferIndex > 0) {
-                        changeFileElements(fileElementsBuffer,activeBufferIndex,activeBufferIndex - 1,lastModifiedTime,unsavedChanges,selStartX,selStartY,selEndX,selEndY);
+                        changeFileElements(fileElementsBuffer,activeBufferIndex,activeBufferIndex - 1,lastModifiedTime,unsavedChanges,selStartX,selStartY,selEndX,selEndY, cursorX, cursorY);
                         changeActiveBuffer(inactiveBuffer,buffer, activeBufferIndex,activeBufferIndex - 1);
                         filename = fileList[activeBufferIndex];
                         //activeBufferIndex--;
-                        cursorX = 0;
-                        cursorY = 0;
+
                         break;
                     }
                     else{
@@ -1330,12 +1334,11 @@ int main(int argc, char* argv[]) {
             case 290:
                 debugWrite("CTRL+Shift+Tab pressed - Switch to previous buffer with active buffer index: " + std::to_string(activeBufferIndex));
                     if (multiFileMode && activeBufferIndex > 0) {
-                        changeFileElements(fileElementsBuffer,activeBufferIndex,activeBufferIndex - 1,lastModifiedTime,unsavedChanges,selStartX,selStartY,selEndX,selEndY);
+                        changeFileElements(fileElementsBuffer,activeBufferIndex,activeBufferIndex - 1,lastModifiedTime,unsavedChanges,selStartX,selStartY,selEndX,selEndY, cursorX, cursorY);
                         changeActiveBuffer(inactiveBuffer,buffer, activeBufferIndex,activeBufferIndex - 1);
                         filename = fileList[activeBufferIndex];
                         //activeBufferIndex--;
-                        cursorX = 0;
-                        cursorY = 0;
+
                         break;
                     }
                     else{

@@ -20,6 +20,8 @@ struct fileElements {
     int selStartY;
     int selEndX;
     int selEndY;
+    int cursorX;
+    int cursorY;
 };
 
 struct cacheAction {
@@ -41,7 +43,8 @@ std::string fileElementsElementToString(fileElements FileElement) {
     returnMessage.append("selStartY : " + std::to_string(FileElement.selStartY) + "\n");
     returnMessage.append("selEndX : " + std::to_string(FileElement.selEndX) + "\n");
     returnMessage.append("selEndY : " + std::to_string(FileElement.selEndY) + "\n");
-    
+    returnMessage.append("cursorX : " + std::to_string(FileElement.cursorX) + "\n");
+    returnMessage.append("cursorY : " + std::to_string(FileElement.cursorY) + "\n");
     return returnMessage;
 }
 
