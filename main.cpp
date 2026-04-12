@@ -1000,7 +1000,7 @@ int main(int argc, char* argv[]) {
     std::string debugTTY;
     // check the early args
     for (int i = 1; i < argc; i++) {
-        if (std::string(argv[i]) == "--multiFile") {
+        if (tolowerString(std::string(argv[i])) == "--multifile") {
             multiFileMode = true;
         }
         if (std::string(argv[i]) == "--config") {

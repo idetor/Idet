@@ -670,3 +670,11 @@ bool stringContainsString(std::string string , std::string containString){
 
 
 // NOTE: colordraw is deprecated - use draw() function in main.cpp instead which now includes syntax highlighting
+
+
+std::string tolowerString(const std::string& str) {
+    std::string result = str;
+    std::transform(result.begin(), result.end(), result.begin(),
+                   [](unsigned char c) { return std::tolower(c); });
+    return result;
+}
