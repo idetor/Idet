@@ -492,11 +492,23 @@ bool NdirectspacesBefore(std::string line, int cursorX, int numSpaces) {
     }
     return true;
 }
-int NdirectspacesBeforeNum(std::string line, int cursorX) {
+int NdirectspacesBeforeNum(const std::string& line, int cursorX) {
+    
+    int bytePos = 0;
+    int charCount = 0;
+    for (size_t i = 0; i < line.length() && charCount < cursorX; i++) {
+        unsigned char c = static_cast<unsigned char>(line[i]);
+        if ((c & 0xC0) != 0x80) {  
+            charCount++;
+        }
+        bytePos++;
+    }
+    
     int spaceCount = 0;
-    for (int i = cursorX - 1; i >= 0 && line[i] == ' '; i--) {
+    for (int i = bytePos - 1; i >= 0 && line[i] == ' '; i--) {
         spaceCount++;
     }
+    
     return spaceCount;
 }
 std::string getWordSelectionRight(const std::string rightString) {
