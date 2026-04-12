@@ -653,13 +653,13 @@ void displayAISettings(int cursorY, int cursorX, int& rowOffset, const std::stri
         attron(COLOR_PAIR(lineNumberScheme));
         
         // Print settings with highlighting
-        mvprintw(1, 0, "%s AI Provider: %s", selectedSetting == 0 ? ">" : " ", ::AiProvider.c_str());
-        mvprintw(2, 0, "%s Auth Token: %s", selectedSetting == 1 ? ">" : " ", ::authToken.empty() ? "(none)" : "(set)");
-        mvprintw(3, 0, "%s Llama Host: %s", selectedSetting == 2 ? ">" : " ", ::llamaCompletionHost.c_str());
-        mvprintw(4, 0, "%s Llama n_predict: %s", selectedSetting == 3 ? ">" : " ", ::llamaCompletionNPredict.c_str());
-        mvprintw(5, 0, "%s Ollama Model: %s", selectedSetting == 4 ? ">" : " ", ::ollamaModel.c_str());
-        mvprintw(6, 0, "%s Inline Suggestion Tokens: %d", selectedSetting == 5 ? ">" : " ", ::inlineSuggestionNPredict);
-        mvprintw(7, 0, "%s Auto Suggestion Delay: %d seconds", selectedSetting == 6 ? ">" : " ", ::AUTO_SUGGESTION_DELAY);
+        mvprintw(1, 0, "%s AI provider: %s", selectedSetting == 0 ? ">" : " ", ::AiProvider.c_str());
+        mvprintw(2, 0, "%s auth-key: %s", selectedSetting == 1 ? ">" : " ", ::authToken.empty() ? "(none)" : "(set)");
+        mvprintw(3, 0, "%s AI Host: %s", selectedSetting == 2 ? ">" : " ", ::llamaCompletionHost.c_str());
+        mvprintw(4, 0, "%s AI n_predict: %s", selectedSetting == 3 ? ">" : " ", ::llamaCompletionNPredict.c_str());
+        mvprintw(5, 0, "%s model (only ollama): %s", selectedSetting == 4 ? ">" : " ", ::ollamaModel.c_str());
+        mvprintw(6, 0, "%s inline suggestion tokens: %d", selectedSetting == 5 ? ">" : " ", ::inlineSuggestionNPredict);
+        mvprintw(7, 0, "%s auto suggestion delay: %d seconds", selectedSetting == 6 ? ">" : " ", ::AUTO_SUGGESTION_DELAY);
         
         if (editingMode) {
             mvprintw(9, 0, "Editing: ");
