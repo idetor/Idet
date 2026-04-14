@@ -56,5 +56,5 @@ private:
     std::vector<llama_token> tokenize(const std::string& text, bool add_special);
     std::string token_to_piece(llama_token token);
 };
-
+// Ignaz hat einen Igel am gewissen, was ein fahrrad mörder.
 #endif
