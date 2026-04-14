@@ -35,6 +35,22 @@ struct cacheAction {
     int pasteSize;  
 };
 
+struct tabOverlayParams {
+    bool exists;
+    int cursorX;
+    int cursorY;
+    int startOfWordX;
+    int startOfWordY;
+    std::vector<std::string> buffer;
+    
+    
+    std::string cachedWord;
+    std::string cachedCompareString;
+    int cachedCursorX = -1;
+    int cachedCursorY = -1;
+    bool needsUpdate = true;
+};
+
 std::string fileElementsElementToString(fileElements FileElement) {
     std::string returnMessage;
     returnMessage.append("lastModified : " + std::to_string(FileElement.lastModified) + "\n");
@@ -115,6 +131,47 @@ struct closeXPos{
     bool hasSecondPos;
     int secondXPos;
 };
+
+std::string beforeCursor(std::string lineContent, int cursorX) {
+    if (cursorX <= 0) {
+        return "";
+    }
+    if (cursorX > lineContent.length()) {
+        cursorX = lineContent.length();
+    }
+    int startPos = cursorX - 1;
+    while (startPos >= 0 && lineContent[startPos] != ' ') {
+        startPos--;
+    }
+    startPos++;  
+    int length = cursorX - startPos;
+    return lineContent.substr(startPos, length);
+}
+
+
+std::string toSpace(std::string lineString){
+    std::string constructBackString = "";
+    for (int i = 0; i < lineString.size(); i++){
+        if (lineString[i] == ' '){
+            return constructBackString;
+        }
+        else {
+            constructBackString = constructBackString + lineString[i];
+        }
+    }
+    return constructBackString;
+}
+
+std::string getWordFromCords(std::string lineContent , posCords cords){
+    
+    if (cords.x < 0 || cords.x > lineContent.length()) {
+        return "";
+    }
+    std::string fromPosString = lineContent.substr(cords.x);
+    return toSpace(fromPosString);
+}
+
+
 
 
 closeXPos getClosestPosCordsX(std::string lineString, std::string compareString, int ignoreNFirst = 0, int getNPos = 0){

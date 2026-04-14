@@ -69,6 +69,8 @@ int searchcount = 0;
 std::string detectedLang = "";
 std::vector<fileElements> fileElementsBuffer;
 int tabSpaces = 4;
+bool tabOverlayActive = false;
+tabOverlayParams tabParams;
 
 // AI Vars
 std::string modelPath = "/var/models/tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf";
@@ -418,6 +420,9 @@ void showHelp() {
 
 }
 
+// Forward declaration
+void tabOverlay(tabOverlayParams& tabOverlayParamsIn);
+
 void draw(int cursorY, int cursorX, int& rowOffset, 
     const std::string& filename,int lineNumberScheme, 
     int contentScheme, bool selectionActive,bool unsavedChanges, 
@@ -579,6 +584,11 @@ if (showInlineSuggestion && !inlineBuffer.empty()) {
     displayInlineSuggestion(inlineBuffer, inlineBufferPosX, inlineBufferPosY, cursorX, cursorY, rowOffset, colOffset, lineNumberWidth);
 }
 
+// Draw tab overlay if active
+if (tabOverlayActive && tabParams.exists) {
+    tabOverlay(tabParams);
+}
+
 refresh();
 
 }
@@ -609,6 +619,11 @@ void remove_at(char *buf, int pos) {
 }
 
 std::size_t char_to_byte_index(const std::string &s, std::size_t char_idx) {
+    // Handle invalid/out-of-bounds input
+    if (char_idx == static_cast<std::size_t>(-1) || char_idx > s.size() * 4) {
+        return 0;
+    }
+    
     std::size_t bytes = 0, chars = 0;
     while (bytes < s.size() && chars < char_idx) {
         unsigned char c = static_cast<unsigned char>(s[bytes]);
@@ -965,6 +980,52 @@ void reloadFile(std::string filename, std::vector<std::string>& buffer){
     loadFile(filename,buffer);
 }
 
+void tabOverlay(tabOverlayParams& tabOverlayParamsIn) {
+    if (!tabOverlayParamsIn.exists) {
+        return;
+    }
+    if (tabOverlayParamsIn.cachedCursorX != tabOverlayParamsIn.cursorX || 
+        tabOverlayParamsIn.cachedCursorY != tabOverlayParamsIn.cursorY) {
+        tabOverlayParamsIn.needsUpdate = true;
+    }
+    if (tabOverlayParamsIn.needsUpdate && !tabOverlayParamsIn.buffer.empty()) {
+        if (tabOverlayParamsIn.cursorY >= tabOverlayParamsIn.buffer.size()) {
+            return;
+        }
+        std::string lineContent = tabOverlayParamsIn.buffer[tabOverlayParamsIn.cursorY];
+        std::string compareString = beforeCursor(lineContent, tabOverlayParamsIn.cursorX);
+        if (compareString != tabOverlayParamsIn.cachedCompareString) {
+            posCords closestThingCords = findInBuffer(tabOverlayParamsIn.buffer, compareString, 1, 0);
+            std::string closeWord = getWordFromCords(lineContent, closestThingCords);
+            if (!closeWord.empty() && closeWord != compareString) {
+                tabOverlayParamsIn.cachedWord = closeWord;
+                tabOverlayParamsIn.cachedCompareString = compareString;
+                tabOverlayParamsIn.cachedCursorX = tabOverlayParamsIn.cursorX;
+                tabOverlayParamsIn.cachedCursorY = tabOverlayParamsIn.cursorY;
+                tabOverlayParamsIn.needsUpdate = false;
+                debugWrite("Tab Overlay - Found new word: " + closeWord);
+            } else {
+                tabOverlayParamsIn.cachedWord = "";
+                tabOverlayParamsIn.exists = false;
+                return;
+            }
+        } else {
+            tabOverlayParamsIn.needsUpdate = false;
+        }
+    }
+    if (!tabOverlayParamsIn.cachedWord.empty()) {
+        attron(COLOR_PAIR(5));
+        int y = tabOverlayParamsIn.cursorY + 2;
+        int x = tabOverlayParamsIn.cursorX;
+        
+        if (y >= 0 && y < LINES && x >= 0 && x < COLS) {
+            mvprintw(y, x, "%s", tabOverlayParamsIn.cachedWord.c_str());
+        }
+        attroff(COLOR_PAIR(5));
+        debugWrite("Tab Overlay - Displaying cached word: " + tabOverlayParamsIn.cachedWord);
+    }
+}
+
 int main(int argc, char* argv[]) {
     // Set locale for UTF-8 support
     setlocale(LC_ALL, "");
@@ -1091,14 +1152,15 @@ int main(int argc, char* argv[]) {
             loadFile(filename);
         }
     }
-    // load other files into inactive buffers if multiFileMode is enabled
+    
+    
     if (multiFileMode == true) {
-        //leave first entry in inactiveBuffer free for main buffer
-        std::vector<std::string> emptyBuffer;
-
-        inactiveBuffer.push_back(emptyBuffer); // main buffer
+        
+        inactiveBuffer.push_back(buffer);
+        buffer.clear();
+        
+        
         for (int i = 1; i < fileList.size(); i++) {
-            
             std::string handlingFile = fileList[i];
             if (isDirectory(handlingFile)){
                 std::cerr << "Provided Filename is a Directory and can not be opened: " + handlingFile + "\n";
@@ -1107,8 +1169,23 @@ int main(int argc, char* argv[]) {
             std::vector<std::string> tmpFileBuffer;
             loadFile(handlingFile, tmpFileBuffer);
             inactiveBuffer.push_back(tmpFileBuffer);
-            loadInfileElements(fileElementsBuffer, handlingFile);
-            debugWrite("Loaded in: " + fileElementsElementToString(fileElementsBuffer[i]));
+        }
+        
+        
+        for (int i = 0; i < fileList.size(); i++) {
+            if (i < (int)fileElementsBuffer.size()) {
+                
+                continue;
+            }
+            loadInfileElements(fileElementsBuffer, fileList[i]);
+        }
+        
+        
+        if (!inactiveBuffer.empty()) {
+            buffer = std::move(inactiveBuffer[0]);
+            inactiveBuffer[0].clear();
+            activeBufferIndex = 0;
+            debugWrite("Multi-file mode: loaded " + std::to_string(fileList.size()) + " files");
         }
     }
     // detect lang
@@ -1123,6 +1200,7 @@ int main(int argc, char* argv[]) {
     init_pair(2, COLOR_WHITE, COLOR_BLUE);   // alternate line numbers
     init_pair(3, COLOR_WHITE, COLOR_BLACK);  // content default
     init_pair(4, COLOR_YELLOW, COLOR_BLACK); // alternate content
+    init_pair(5, COLOR_CYAN, COLOR_BLUE); // suggestive content
 
     init_pair(10, COLOR_CYAN, COLOR_BLUE);
     init_pair(11, COLOR_BLUE, COLOR_BLACK);  // bash commands - green
@@ -1164,6 +1242,14 @@ int main(int argc, char* argv[]) {
         if (cursorY - rowOffset >= maxVisibleRows) rowOffset = cursorY - maxVisibleRows + 1;
         if (cursorY - rowOffset < 0) rowOffset = cursorY;
 
+        // Update overlay parameters if overlay is active
+        if (tabOverlayActive && tabParams.exists) {
+            tabParams.buffer = buffer;
+            tabParams.cursorX = cursorX;
+            tabParams.cursorY = cursorY;
+            debugWrite("Tab overlay parameters updated - cursor: (" + std::to_string(cursorX) + ", " + std::to_string(cursorY) + ")");
+        }
+        
         draw(cursorY, cursorX, rowOffset, filename, lineNumberScheme, contentScheme, selectionActive, unsavedChanges, colOffset, inlineSuggestionNPredict, multiFileMode, fileList, activeBufferIndex);
         if (activeSearch) {
             debugWrite("Searching through results...");
@@ -1216,6 +1302,14 @@ int main(int argc, char* argv[]) {
             lastEditTime = std::chrono::system_clock::to_time_t(now);
             autoSuggestionTriggered = false;
             debugWrite("Key pressed: " + std::to_string(ch));
+            
+
+            if (ch != KEY_RIGHT && ch != KEY_LEFT && ch != KEY_UP && ch != KEY_DOWN && 
+                ch != KEY_HOME && ch != KEY_END && ch != 402 && ch != 393) {
+                tabOverlayActive = false;
+                tabParams.exists = false;
+                debugWrite("Tab overlay disabled");
+            }
         } else {
             usleep(50000);
             continue;
@@ -1223,10 +1317,25 @@ int main(int argc, char* argv[]) {
         int oldXPos = cursorX;
         int oldYPos = cursorY;
         
-        // Store buffer state before action for undo/redo
+
         std::vector<std::string> bufferBeforeAction = buffer;
         
         switch (ch) {
+            case 4:{
+                if (!buffer.empty() && cursorY >= 0 && cursorY < static_cast<int>(buffer.size())) {
+                    tabParams.buffer = buffer;
+                    tabParams.cursorX = cursorX;
+                    tabParams.cursorY = cursorY;
+                    tabParams.exists = true;
+                    tabParams.needsUpdate = true;  
+                    tabOverlayActive = true;
+                    debugWrite("Tab overlay activated");
+                } else {
+                    debugWrite("Tab overlay cannot activate - invalid buffer state");
+                }
+                break;
+            }
+
             case CTRL_KEY('q'):
                 if (unsavedChanges == true){
                     clear();
@@ -1330,14 +1439,45 @@ int main(int argc, char* argv[]) {
                 contentScheme    = (contentScheme == 3) ? 4 : 3;
                 break;
             case 9:
-                // TAB adds spaces
+                // TAB accepts inline suggestion or inserts spaces
                 {
-                    std::size_t bytePos = char_to_byte_index(buffer[cursorY], cursorX);
-                    buffer[cursorY].insert(bytePos, tabSpaces, ' ');
-                    cursorX += tabSpaces;
-                    unsavedChanges = true;
-                    showInlineSuggestion = false;
-                    inlineSuggestionExists = false;
+                    if (inlineSuggestionExists && !inlineBuffer.empty()) {
+                        // Accept inline suggestion with Tab
+                        debugWrite("Accepting inline suggestion via Tab");
+                        for (size_t i = 0; i < inlineBuffer.size(); ++i) {
+                            const std::string& line = inlineBuffer[i];
+                            if (i == 0) {
+                                // First line - insert at current cursor position
+                                if (cursorY >= buffer.size()) {
+                                    buffer.emplace_back("");
+                                }
+                                std::size_t bytePos = char_to_byte_index(buffer[cursorY], cursorX);
+                                if (bytePos > buffer[cursorY].size()) {
+                                    buffer[cursorY].resize(bytePos, ' ');
+                                }
+                                buffer[cursorY].insert(bytePos, line);
+                                cursorX += static_cast<int>(line.size());
+                            } else {
+                                // Subsequent lines
+                                std::size_t bytePos = char_to_byte_index(buffer[cursorY], cursorX);
+                                std::string restOfLine = buffer[cursorY].substr(bytePos);
+                                buffer[cursorY] = buffer[cursorY].substr(0, bytePos);
+                                cursorY++;
+                                buffer.insert(buffer.begin() + cursorY, line + restOfLine);
+                                cursorX = static_cast<int>(line.size());
+                            }
+                        }
+                        unsavedChanges = true;
+                        showInlineSuggestion = false;
+                        inlineSuggestionExists = false;
+                        inlineBuffer.clear();
+                    } else {
+                        // No suggestion - insert tab spaces
+                        std::size_t bytePos = char_to_byte_index(buffer[cursorY], cursorX);
+                        buffer[cursorY].insert(bytePos, tabSpaces, ' ');
+                        cursorX += tabSpaces;
+                        unsavedChanges = true;
+                    }
                 }
                 break;
             case 0: {

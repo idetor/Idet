@@ -14,6 +14,8 @@
 #include <thread>
 // provides help for bash syntax highlighting and autocompletion
 
+
+
 struct itemAffiliation {
     bool builtInCommands;
     bool builtInKeyword;
