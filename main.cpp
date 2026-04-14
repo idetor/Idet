@@ -400,7 +400,7 @@ void showHelp() {
     mvprintw(11, 0, "Shift + arrowkeys to select text");
     mvprintw(12, 0, "Use --multifile to open mutliple files");    
     mvprintw(13, 0, "strg + f2/f3 to switch between files in multifile mode");
-    mvprintw(15, 0, versionString);
+    mvprintw(15, 0, "%s", versionString.c_str());
 
     // Turn off color
     attroff(COLOR_PAIR(lineNumberScheme));
