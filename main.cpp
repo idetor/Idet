@@ -386,6 +386,7 @@ void showHelp() {
     //attron(COLOR_PAIR(lineNumberScheme));
 
     // Print help text
+    std::string versionString = "Version: " + version;
     mvprintw(0, 0, "Idet Editor - Help");
     mvprintw(2, 0, "strg + s to save");
     mvprintw(3, 0, "strg + c to copy");
@@ -399,7 +400,7 @@ void showHelp() {
     mvprintw(11, 0, "Shift + arrowkeys to select text");
     mvprintw(12, 0, "Use --multifile to open mutliple files");    
     mvprintw(13, 0, "strg + f2/f3 to switch between files in multifile mode");
-    mvprintw(15, 0, ("Version: " + version).c_str());
+    mvprintw(15, 0, versionString);
 
     // Turn off color
     attroff(COLOR_PAIR(lineNumberScheme));
