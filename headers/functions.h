@@ -83,37 +83,49 @@ inline cacheAction createDiff(
         return diff;
     }
     
-    size_t firstDiff = 0;
     size_t commonStart = 0;
     while (commonStart < oldBuffer.size() && commonStart < newBuffer.size() &&
            oldBuffer[commonStart] == newBuffer[commonStart]) {
         commonStart++;
     }
     
-    if (commonStart <= oldBuffer.size()) {
-        diff.affectedStartLine = commonStart;
-        for (size_t i = commonStart; i < oldBuffer.size(); ++i) {
-            diff.removedLines.push_back(oldBuffer[i]);
-        }
+    // Always set affectedStartLine to where changes begin
+    diff.affectedStartLine = commonStart;
+    
+    // Collect removed lines from old buffer
+    for (size_t i = commonStart; i < oldBuffer.size(); ++i) {
+        diff.removedLines.push_back(oldBuffer[i]);
     }
     
-    if (commonStart <= newBuffer.size()) {
-        for (size_t i = commonStart; i < newBuffer.size(); ++i) {
-            diff.insertedLines.push_back(newBuffer[i]);
-        }
+    // Collect inserted lines from new buffer
+    for (size_t i = commonStart; i < newBuffer.size(); ++i) {
+        diff.insertedLines.push_back(newBuffer[i]);
     }
+    
     return diff;
 }
 
 
 inline void applyDiff(std::vector<std::string>& buffer, const cacheAction& diff) {
     int lineNum = diff.affectedStartLine;
-    if (lineNum < buffer.size()) {
+    
+    // Ensure buffer has enough lines before erasing
+    // Pad with empty strings if necessary
+    while ((int)buffer.size() < lineNum) {
+        buffer.push_back("");
+    }
+    
+    // Erase from affected line to end
+    if (lineNum < (int)buffer.size()) {
         buffer.erase(buffer.begin() + lineNum, buffer.end());
     }
+    
+    // Append the new inserted lines
     for (const auto& line : diff.insertedLines) {
         buffer.push_back(line);
     }
+    
+    // Ensure buffer is never empty
     if (buffer.empty()) {
         buffer.push_back("");
     }

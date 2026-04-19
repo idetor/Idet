@@ -37,6 +37,7 @@ void debugWrite(const std::string& msg) {
 // General Vars
 int lastModifiedTime = 0;
 std::vector<std::string> buffer;
+std::vector<std::string> initialFileBuffer;
 std::vector<std::string> inlineBuffer;
 int inlineBufferPosX = 0;
 int inlineBufferPosY = 0;
@@ -54,7 +55,8 @@ const size_t DEBUG_MAX = 10000;
 std::string filename;
 std::vector<cacheAction> cacheActionBuffer; 
 int maxCacheNum = 100;
-int cacheIndex = -1; // tracks current position in undo/redo history (-1 means at latest state)
+int cacheIndex = -1; 
+int savedCacheIndex = -1;
 std::vector<std::vector<std::string>> inactiveBuffer;
 bool multiFileMode = false;
 std::vector<std::string> fileList;
@@ -71,6 +73,7 @@ std::vector<fileElements> fileElementsBuffer;
 int tabSpaces = 4;
 bool tabOverlayActive = false;
 tabOverlayParams tabParams;
+bool inplacementHappened = false;
 
 // AI Vars
 std::string modelPath = "/var/models/tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf";
@@ -290,6 +293,7 @@ void loadFile(const std::string& filename, std::vector<std::string>& targetBuffe
         debugWrite("file does not exist");
         targetBuffer.clear();
         targetBuffer.emplace_back();
+        initialFileBuffer = targetBuffer; // Track initial state
         lastModifiedTime = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
         return;
     }
@@ -297,6 +301,7 @@ void loadFile(const std::string& filename, std::vector<std::string>& targetBuffe
     std::ifstream file(filename);
     if (!file) {
         targetBuffer.clear();
+        initialFileBuffer = targetBuffer; // Track initial state
         lastModifiedTime = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
         return;
     }
@@ -307,6 +312,8 @@ void loadFile(const std::string& filename, std::vector<std::string>& targetBuffe
         targetBuffer.push_back(line);
     }
     if (targetBuffer.empty()) targetBuffer.push_back("");
+    
+    initialFileBuffer = targetBuffer; // Track initial state after loading
 
     try {
         lastModifiedTime = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
@@ -326,6 +333,8 @@ void saveFile(const std::string& filename ) {
     
     lastModifiedTime = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now()); // time_t
     unsavedChanges = false;
+    initialFileBuffer = buffer; // Update initial state to match saved content
+    savedCacheIndex = cacheIndex; // Track the cache state when file is saved
 }
 
 void copyClipboard(int startY , int endY){
@@ -420,7 +429,6 @@ void showHelp() {
 
 }
 
-// Forward declaration
 void tabOverlay(tabOverlayParams& tabOverlayParamsIn);
 
 void draw(int cursorY, int cursorX, int& rowOffset, 
@@ -640,23 +648,39 @@ std::size_t char_to_byte_index(const std::string &s, std::size_t char_idx) {
 void appendCacheActionBuffer(const std::vector<std::string>& oldBuffer, const std::vector<std::string>& newBuffer, 
                              int keyPressed, int cursorX, int cursorY, std::vector<cacheAction>& cacheActionBuffer, 
                              int maxCacheNum, int pasteSize = 0) {
-    // If not at the latest state, remove all "future" actions (redo history gets cleared)
     if (cacheIndex >= 0 && cacheIndex < (int)cacheActionBuffer.size() - 1) {
+        debugWrite("CACHE: clearing redo history from index " + std::to_string(cacheIndex + 1));
         cacheActionBuffer.erase(cacheActionBuffer.begin() + cacheIndex + 1, cacheActionBuffer.end());
     }
     
-    // Create a diff instead of storing full buffer
+    
     cacheAction diff = createDiff(oldBuffer, newBuffer, cursorX, cursorY, keyPressed, pasteSize);
     
-    // Only add to cache if there's actually a change
+    debugWrite("CACHE: createDiff returned: removed=" + std::to_string(diff.removedLines.size()) + 
+             ", inserted=" + std::to_string(diff.insertedLines.size()) + 
+             ", affectedStartLine=" + std::to_string(diff.affectedStartLine));
+    
+    
     if (!diff.removedLines.empty() || !diff.insertedLines.empty()) {
+        debugWrite("CACHE: adding action to buffer (now size " + std::to_string(cacheActionBuffer.size() + 1) + ")");
         if (cacheActionBuffer.size() >= maxCacheNum) {
             cacheActionBuffer.erase(cacheActionBuffer.begin()); // remove oldest
             cacheIndex = std::max(-1, cacheIndex - 1); // adjust index if we removed the first element
         }
         cacheActionBuffer.push_back(diff);
         cacheIndex = cacheActionBuffer.size() - 1; // always move to latest state after new action
+        debugWrite("CACHE: cacheIndex now = " + std::to_string(cacheIndex));
+    } else {
+        debugWrite("CACHE: no change detected, not caching");
     }
+    debugWrite(" Cache Index: " + std::to_string(cacheIndex) + " / " + std::to_string(cacheActionBuffer.size()));
+}
+
+void generateEmptyCacheAction(std::vector<cacheAction>& cacheActionBuffer, int& cacheIndex) {
+    cacheAction emptyAction;
+    emptyAction.affectedStartLine = 0;
+    cacheActionBuffer.push_back(emptyAction);
+    cacheIndex = cacheActionBuffer.size() - 1;
 }
 
 void displayAISettings(int cursorY, int cursorX, int& rowOffset, const std::string& filename,int lineNumberScheme, int contentScheme, bool selectionActive,bool unsavedChanges, int& colOffset, std::string authToken, std::string llamaCompletionHost, std::string llamaCompletionNPredict, std::string ollamaModel , std::string AiProvider, int inlineSuggestionNPredict, int AUTO_SUGGESTION_DELAY){
@@ -817,39 +841,47 @@ std::vector<std::string> generateInlineBuffer(const std::string& inputBufferStri
     return outVector;
 }
 
-void undo(int& cursorX, int& cursorY) {
+void undo(int& cursorX, int& cursorY, std::vector<std::string>& buffer, std::vector<cacheAction>& cacheActionBuffer, int& cacheIndex, int savedCacheIndex) {
+    debugWrite("UNDO: cacheActionBuffer.size()=" + std::to_string(cacheActionBuffer.size()) + ", cacheIndex=" + std::to_string(cacheIndex));
+    
     if (cacheIndex < 0) {
         debugWrite("Nothing to undo");
         return;
     }
     
     cacheIndex--;
+    debugWrite("UNDO: after decrement, cacheIndex=" + std::to_string(cacheIndex));
+    
     if (cacheIndex >= 0) {
         const cacheAction& action = cacheActionBuffer[cacheIndex];
-        // Reconstruct buffer by applying all diffs from start to cacheIndex
-        buffer.clear();
-        buffer.push_back("");
+        debugWrite("UNDO: applying diffs 0 to " + std::to_string(cacheIndex));
+        buffer = initialFileBuffer;
         
         for (int i = 0; i <= cacheIndex; ++i) {
+            debugWrite("UNDO: applying diff " + std::to_string(i));
             applyDiff(buffer, cacheActionBuffer[i]);
+        }
+        
+        debugWrite("UNDO: buffer after reconstruction has " + std::to_string(buffer.size()) + " lines");
+        if (!buffer.empty()) {
+            debugWrite("UNDO: line 0 = '" + buffer[0] + "'");
         }
         
         cursorX = action.cursorX;
         cursorY = action.cursorY;
-        unsavedChanges = true;
+        unsavedChanges = (cacheIndex != savedCacheIndex);
         debugWrite("Undo: restored to cache index " + std::to_string(cacheIndex));
     } else {
-        // Before any actions - restore to empty buffer
-        buffer.clear();
-        buffer.push_back("");
+        debugWrite("UNDO: restoring to initial file state");
+        buffer = initialFileBuffer;
         cursorX = 0;
         cursorY = 0;
-        unsavedChanges = true;
-        debugWrite("Undo: restored to initial state");
+        unsavedChanges = (savedCacheIndex != -1);
+        debugWrite("Undo: restored to initial state, buf size=" + std::to_string(buffer.size()));
     }
 }
 
-void redo(int& cursorX, int& cursorY) {
+void redo(int& cursorX, int& cursorY, std::vector<std::string>& buffer, std::vector<cacheAction>& cacheActionBuffer, int& cacheIndex, int savedCacheIndex) {
     if (cacheIndex >= (int)cacheActionBuffer.size() - 1) {
         debugWrite("Nothing to redo");
         return;
@@ -858,9 +890,8 @@ void redo(int& cursorX, int& cursorY) {
     cacheIndex++;
     if (cacheIndex < (int)cacheActionBuffer.size()) {
         const cacheAction& action = cacheActionBuffer[cacheIndex];
-        // Reconstruct buffer by applying all diffs from start to cacheIndex
-        buffer.clear();
-        buffer.push_back("");
+        // Reconstruct buffer by starting from initial file state and applying all diffs from 0 to cacheIndex
+        buffer = initialFileBuffer;
         
         for (int i = 0; i <= cacheIndex; ++i) {
             applyDiff(buffer, cacheActionBuffer[i]);
@@ -868,7 +899,8 @@ void redo(int& cursorX, int& cursorY) {
         
         cursorX = action.cursorX;
         cursorY = action.cursorY;
-        unsavedChanges = true;
+        // Only mark as unsaved if we're not at the saved state
+        unsavedChanges = (cacheIndex != savedCacheIndex);
         debugWrite("Redo: restored to cache index " + std::to_string(cacheIndex));
     }
 }
@@ -978,6 +1010,10 @@ void changeActiveBuffer(
 void reloadFile(std::string filename, std::vector<std::string>& buffer){
     buffer.clear();
     loadFile(filename,buffer);
+    // Reset undo/redo history when reloading file
+    cacheActionBuffer.clear();
+    cacheIndex = -1;
+    savedCacheIndex = -1;
 }
 
 void tabOverlay(tabOverlayParams& tabOverlayParamsIn) {
@@ -1228,21 +1264,16 @@ int main(int argc, char* argv[]) {
     int ch;
     
 
-
-    // Initialize lastEditTime to current time
     auto initTime = std::chrono::system_clock::now();
     lastEditTime = std::chrono::system_clock::to_time_t(initTime);
     if(multiFileMode){
         SetInfileElements(fileElementsBuffer, activeBufferIndex, lastModifiedTime, unsavedChanges, selStartX, selStartY, selEndX, selEndY, cursorX, cursorY);
     }
-    
     while (true) {
-        // Scroll logic
+        inplacementHappened = false;
         int maxVisibleRows = LINES - 2;
         if (cursorY - rowOffset >= maxVisibleRows) rowOffset = cursorY - maxVisibleRows + 1;
         if (cursorY - rowOffset < 0) rowOffset = cursorY;
-
-        // Update overlay parameters if overlay is active
         if (tabOverlayActive && tabParams.exists) {
             tabParams.buffer = buffer;
             tabParams.cursorX = cursorX;
@@ -1282,7 +1313,6 @@ int main(int argc, char* argv[]) {
                 continue;
             }
         }
-        // Check for auto-suggestion trigger after 3 seconds of inactivity
         auto now = std::chrono::system_clock::now();
         std::time_t timeNow = std::chrono::system_clock::to_time_t(now);
         int timeSinceLastEdit = static_cast<int>(timeNow - lastEditTime);
@@ -1373,10 +1403,10 @@ int main(int argc, char* argv[]) {
                 saveFile(filename);
                 break;
             case CTRL_KEY('z'):
-                undo(cursorX, cursorY);
+                undo(cursorX, cursorY, buffer, cacheActionBuffer, cacheIndex, savedCacheIndex);
                 break;
             case CTRL_KEY('y'):
-                redo(cursorX, cursorY);
+                redo(cursorX, cursorY, buffer, cacheActionBuffer, cacheIndex, savedCacheIndex);
                 break;
             case 569:
                 debugWrite("CTRL+Tab pressed - Switch to next buffer with active buffer index: " + std::to_string(activeBufferIndex));
@@ -1831,7 +1861,33 @@ int main(int argc, char* argv[]) {
                 }
                 break;
             case 330:
-                if (cursorY >= 0 && cursorY < static_cast<int>(buffer.size())) {
+                if (selectionActive) {
+                    // Delete selected content
+                    int startX = selStartX;
+                    int startY = selStartY;
+                    int endX   = selEndX;
+                    int endY   = selEndY;
+
+                    if (startY > endY || (startY == endY && startX > endX)) {
+                        std::swap(startX, endX);
+                        std::swap(startY, endY);
+                    }
+
+                    if (startY == endY) {
+                        buffer[startY].erase(startX, endX - startX);
+                    }
+                    else {
+                        buffer[startY].erase(startX);
+                        buffer[endY].erase(0, endX);
+                        buffer[startY] += buffer[endY];
+                        buffer.erase(buffer.begin() + startY + 1,
+                                    buffer.begin() + endY + 1);
+                    }
+                    cursorX = startX;
+                    cursorY = startY;
+                    selectionActive = false;
+                    unsavedChanges = true;
+                } else if (cursorY >= 0 && cursorY < static_cast<int>(buffer.size())) {
                     std::string &line = buffer[cursorY];
                     int charCount = getUtf8StrLen(line);
                     if (cursorX >= 0 && cursorX < charCount) {
@@ -1976,7 +2032,32 @@ int main(int argc, char* argv[]) {
                 showInlineSuggestion = false;
                 inlineSuggestionExists = false;
                 unsavedChanges = true;
-                if (cursorX > 0) {
+                if (selectionActive) {
+                    // Delete selected content
+                    int startX = selStartX;
+                    int startY = selStartY;
+                    int endX   = selEndX;
+                    int endY   = selEndY;
+
+                    if (startY > endY || (startY == endY && startX > endX)) {
+                        std::swap(startX, endX);
+                        std::swap(startY, endY);
+                    }
+
+                    if (startY == endY) {
+                        buffer[startY].erase(startX, endX - startX);
+                    }
+                    else {
+                        buffer[startY].erase(startX);
+                        buffer[endY].erase(0, endX);
+                        buffer[startY] += buffer[endY];
+                        buffer.erase(buffer.begin() + startY + 1,
+                                    buffer.begin() + endY + 1);
+                    }
+                    cursorX = startX;
+                    cursorY = startY;
+                    selectionActive = false;
+                } else if (cursorX > 0) {
                     
                     int spacesBeforeCursor = NdirectspacesBeforeNum(buffer[cursorY], cursorX);
                     int deleteCount = 1; 
@@ -2006,6 +2087,36 @@ int main(int argc, char* argv[]) {
                 debugWrite("got results in Vec: " + posCordsVecToString(searchResults));
                 break;
             default: {
+                // Handle selection deletion first if selection is active
+                if(selectionActive){
+                    int startX = selStartX;
+                    int startY = selStartY;
+                    int endX   = selEndX;
+                    int endY   = selEndY;
+
+                    if (startY > endY || (startY == endY && startX > endX)) {
+                        std::swap(startX, endX);
+                        std::swap(startY, endY);
+                    }
+
+                    if (startY == endY) {
+                        buffer[startY].erase(startX, endX - startX);
+                    }
+                    else {
+                        buffer[startY].erase(startX);
+                        buffer[endY].erase(0, endX);
+                        buffer[startY] += buffer[endY];
+                        buffer.erase(buffer.begin() + startY + 1,
+                                    buffer.begin() + endY + 1);
+                    }
+                    cursorX = startX;
+                    cursorY = startY;
+                    selectionActive = false;
+                    inplacementHappened = true;
+                    debugWrite("Inplacement Happened" + std::to_string(inplacementHappened));
+                }
+                
+                // Now handle character insertion
                 if (ch >= 128 && ch <= 255) {
                     std::string utf8_char;
                     utf8_char += static_cast<char>(ch);
@@ -2056,21 +2167,23 @@ int main(int argc, char* argv[]) {
                     break;
                 }
                 break;
+
             }
         }
 
         // Store action in cache if buffer changed or position changed
-        if (buffer != bufferBeforeAction || cursorX != oldXPos || cursorY != oldYPos) {
+        if (buffer != bufferBeforeAction || cursorX != oldXPos || cursorY != oldYPos || inplacementHappened) {
+            
             // Only cache certain actions that change buffer state
             if (ch >= 32 || ch == 10 || ch == KEY_BACKSPACE || ch == 127 || 
-                ch == 330 || ch == CTRL_KEY('k') || ch == CTRL_KEY('v') || ch == 9) {
+                ch == 330 || ch == CTRL_KEY('k') || ch == CTRL_KEY('v') || ch == 9 || (ch < 32 && selectionActive || inplacementHappened)) {
                 
                 // For paste operations, track the size of pasted content
                 int pasteSize = 0;
                 if (ch == CTRL_KEY('v')) {
                     pasteSize = clipboard.size();
                 }
-                
+                debugWrite("Appending CacheActionBuffer");
                 appendCacheActionBuffer(bufferBeforeAction, buffer, ch, cursorX, cursorY, cacheActionBuffer, maxCacheNum, pasteSize);
             }
         }
