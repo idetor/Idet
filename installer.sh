@@ -15,6 +15,8 @@ if [[ "$CHOICE" == "update" || "$CHOICE" == "u" || -z "$CHOICE" ]]; then
   SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
   cd "$SCRIPT_DIR" || exit 1
   git pull
+  echo "Creating config"
+  touch config.json
   echo "Compiling main.cpp to idet..."    
   g++ -std=c++20 main.cpp -lncursesw -lcurl -o idet
   
@@ -37,6 +39,8 @@ elif [[ "$CHOICE" == "install-repo" || "$CHOICE" == "ir" ]]; then
   echo "Repo exists → updating..."
   git pull
   fi
+  echo "Creating config"
+  touch config.json
   echo "Compiling main.cpp to idet..."
   g++ -std=c++20 main.cpp -lncursesw -lcurl -o idet
   chmod +x idet
@@ -47,6 +51,8 @@ elif [[ "$CHOICE" == "install" || "$CHOICE" == "i" ]]; then
   echo "Installing dependencies..."
   apt update
   apt install -y git libncurses-dev libcurl4-openssl-dev nlohmann-json3-dev g++ cmake
+  echo "Creating config"
+  touch config.json
   echo "Compiling main.cpp to idet..."
   g++ -std=c++20 main.cpp -lncursesw -lcurl -o idet
   chmod +x idet
