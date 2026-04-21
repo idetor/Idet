@@ -82,6 +82,16 @@ bool multiFileMode = false;
 int tabSpaces = 4;
 
 // AI Vars
+
+AiProps AiSettings{
+    .AiProvider = "llamacpp",
+    .authToken = "",
+    .llamaCompletionHost = "http://localhost:8080",
+    .llamaCompletionNPredict = "5",
+    .ollamaModel = "gpt-oss:20b",
+    .inlineSuggestionNPredict = 5,
+    .AUTO_SUGGESTION_DELAY = 3
+};
 std::string modelPath = "/var/models/tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf";
 std::string authToken = "";
 std::string llamaCompletionHost = "http://localhost:8080"; //URL of llamacpp
@@ -220,7 +230,7 @@ int main(int argc, char* argv[]) {
     if (checkFileExistance(configPath)){
             ConfigLoader config(configPath);
             debugWrite("Config file content: " + jsonToString(config.get()));
-            loadConfig(configPath);
+            loadConfig(configPath, AiSettings);
     }
     else {
         debugWrite("!!!No config file found at " + configPath);
@@ -376,7 +386,7 @@ int main(int argc, char* argv[]) {
         if (timeSinceLastEdit >= AUTO_SUGGESTION_DELAY && !autoSuggestionTriggered && 
             !showInlineSuggestion && !inlineSuggestionExists && allowInlineSuggestion) {
             debugWrite("Auto-triggering inline suggestion after " + std::to_string(timeSinceLastEdit) + " seconds");
-            getInlineSuggestion(cursorX, cursorY, buffer, maxInlinePromptSize);
+            getInlineSuggestion(cursorX, cursorY, buffer, maxInlinePromptSize, AiSettings, inlineBuffer, inlineBufferPosX, inlineBufferPosY, showInlineSuggestion);
             inlineSuggestionExists = true;
             autoSuggestionTriggered = true;
             detectLanguage(buffer, detectedLang, filename); 
@@ -460,10 +470,10 @@ int main(int argc, char* argv[]) {
                 saveFile(filename, lastModifiedTime, unsavedChanges, initialFileBuffer, savedCacheIndex, buffer, cacheIndex);
                 break;
             case CTRL_KEY('z'):
-                undo(cursorX, cursorY, buffer, cacheActionBuffer, cacheIndex, savedCacheIndex);
+                undo(cursorX, cursorY, buffer, cacheActionBuffer, cacheIndex, savedCacheIndex, initialFileBuffer, unsavedChanges);
                 break;
             case CTRL_KEY('y'):
-                redo(cursorX, cursorY, buffer, cacheActionBuffer, cacheIndex, savedCacheIndex);
+                redo(cursorX, cursorY, buffer, cacheActionBuffer, cacheIndex, savedCacheIndex, initialFileBuffer, unsavedChanges);
                 break;
             case 569:
                 debugWrite("CTRL+Tab pressed - Switch to next buffer with active buffer index: " + std::to_string(activeBufferIndex));
@@ -903,7 +913,7 @@ int main(int argc, char* argv[]) {
                 break;
             case KEY_F(7):
 
-                displayAISettings(cursorY, cursorX, rowOffset, argv[1], lineNumberScheme, contentScheme, selectionActive, unsavedChanges, colOffset, authToken, llamaCompletionHost, llamaCompletionNPredict, ollamaModel , AiProvider, inlineSuggestionNPredict, AUTO_SUGGESTION_DELAY);
+                displayAISettings(cursorY, cursorX, rowOffset, argv[1], lineNumberScheme, contentScheme, selectionActive, unsavedChanges, colOffset, AiSettings);
                 cursorX = oldXPos;
                 cursorY = oldYPos;
                 break;
@@ -975,7 +985,7 @@ int main(int argc, char* argv[]) {
             case 18:
                 debugWrite("Reloading File");
                 erase();
-                reloadFile(filename,buffer);
+                reloadFile(filename,buffer, initialFileBuffer, lastModifiedTime, cacheActionBuffer, cacheIndex, savedCacheIndex);
 
                 
                 continue;
@@ -1241,7 +1251,7 @@ int main(int argc, char* argv[]) {
                     pasteSize = clipboard.size();
                 }
                 debugWrite("Appending CacheActionBuffer");
-                appendCacheActionBuffer(bufferBeforeAction, buffer, ch, cursorX, cursorY, cacheActionBuffer, maxCacheNum, pasteSize);
+                appendCacheActionBuffer(bufferBeforeAction, buffer, ch, cursorX, cursorY, cacheActionBuffer, maxCacheNum, cacheIndex, pasteSize);
             }
         }
 

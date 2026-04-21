@@ -13,6 +13,17 @@
 #include <cstdlib>
 
 //#include "light/bash.hpp"
+struct AiProps{
+    std::string AiProvider;
+    std::string authToken;
+    std::string llamaCompletionHost;
+    std::string llamaCompletionNPredict;
+    std::string ollamaModel;
+    int inlineSuggestionNPredict;
+    int AUTO_SUGGESTION_DELAY;
+
+};
+
 
 struct FileProperties{
     int lastModifiedTime;
@@ -1476,7 +1487,7 @@ std::size_t char_to_byte_index(const std::string &s, std::size_t char_idx) {
 
 void appendCacheActionBuffer(const std::vector<std::string>& oldBuffer, const std::vector<std::string>& newBuffer, 
                              int keyPressed, int cursorX, int cursorY, std::vector<cacheAction>& cacheActionBuffer, 
-                             int maxCacheNum, int pasteSize = 0) {
+                             int maxCacheNum,int cacheIndex, int pasteSize = 0) {
     if (cacheIndex >= 0 && cacheIndex < (int)cacheActionBuffer.size() - 1) {
         debugWrite("CACHE: clearing redo history from index " + std::to_string(cacheIndex + 1));
         cacheActionBuffer.erase(cacheActionBuffer.begin() + cacheIndex + 1, cacheActionBuffer.end());
@@ -1511,8 +1522,9 @@ void generateEmptyCacheAction(std::vector<cacheAction>& cacheActionBuffer, int& 
     cacheActionBuffer.push_back(emptyAction);
     cacheIndex = cacheActionBuffer.size() - 1;
 }
-
-void displayAISettings(int cursorY, int cursorX, int& rowOffset, const std::string& filename,int lineNumberScheme, int contentScheme, bool selectionActive,bool unsavedChanges, int& colOffset, std::string authToken, std::string llamaCompletionHost, std::string llamaCompletionNPredict, std::string ollamaModel , std::string AiProvider, int inlineSuggestionNPredict, int AUTO_SUGGESTION_DELAY){
+void displayAISettings(int cursorY, int cursorX, int& rowOffset,
+     const std::string& filename, int lineNumberScheme, int contentScheme,
+      bool selectionActive, bool unsavedChanges, int& colOffset, AiProps& AiSettings){
     int selectedSetting = 0;
     const int NUM_SETTINGS = 7;
     bool editingMode = false;
@@ -1523,13 +1535,13 @@ void displayAISettings(int cursorY, int cursorX, int& rowOffset, const std::stri
         attron(COLOR_PAIR(lineNumberScheme));
         
         // Print settings with highlighting
-        mvprintw(1, 0, "%s AI provider: %s", selectedSetting == 0 ? ">" : " ", ::AiProvider.c_str());
-        mvprintw(2, 0, "%s auth-key: %s", selectedSetting == 1 ? ">" : " ", ::authToken.empty() ? "(none)" : "(set)");
-        mvprintw(3, 0, "%s AI Host: %s", selectedSetting == 2 ? ">" : " ", ::llamaCompletionHost.c_str());
-        mvprintw(4, 0, "%s AI n_predict: %s", selectedSetting == 3 ? ">" : " ", ::llamaCompletionNPredict.c_str());
-        mvprintw(5, 0, "%s model (only ollama): %s", selectedSetting == 4 ? ">" : " ", ::ollamaModel.c_str());
-        mvprintw(6, 0, "%s inline suggestion tokens: %d", selectedSetting == 5 ? ">" : " ", ::inlineSuggestionNPredict);
-        mvprintw(7, 0, "%s auto suggestion delay: %d seconds", selectedSetting == 6 ? ">" : " ", ::AUTO_SUGGESTION_DELAY);
+        mvprintw(1, 0, "%s AI provider: %s", selectedSetting == 0 ? ">" : " ", AiSettings.AiProvider.c_str());
+        mvprintw(2, 0, "%s auth-key: %s", selectedSetting == 1 ? ">" : " ", AiSettings.authToken.empty() ? "(none)" : "(set)");
+        mvprintw(3, 0, "%s AI Host: %s", selectedSetting == 2 ? ">" : " ", AiSettings.llamaCompletionHost.c_str());
+        mvprintw(4, 0, "%s AI n_predict: %s", selectedSetting == 3 ? ">" : " ", AiSettings.llamaCompletionNPredict.c_str());
+        mvprintw(5, 0, "%s model (only ollama): %s", selectedSetting == 4 ? ">" : " ", AiSettings.ollamaModel.c_str());
+        mvprintw(6, 0, "%s inline suggestion tokens: %d", selectedSetting == 5 ? ">" : " ", AiSettings.inlineSuggestionNPredict);
+        mvprintw(7, 0, "%s auto suggestion delay: %d seconds", selectedSetting == 6 ? ">" : " ", AiSettings.AUTO_SUGGESTION_DELAY);
         
         if (editingMode) {
             mvprintw(9, 0, "Editing: ");
@@ -1552,28 +1564,28 @@ void displayAISettings(int cursorY, int cursorX, int& rowOffset, const std::stri
                 // Save the new value based on selected setting
                 switch (selectedSetting) {
                     case 0: // AI Provider
-                        if (!editBuffer.empty()) ::AiProvider = editBuffer;
+                        if (!editBuffer.empty()) AiSettings.AiProvider = editBuffer;
                         break;
                     case 1: // Auth Token
-                        ::authToken = editBuffer;
+                        AiSettings.authToken = editBuffer;
                         break;
                     case 2: // Llama Host
-                        if (!editBuffer.empty()) ::llamaCompletionHost = editBuffer;
+                        if (!editBuffer.empty()) AiSettings.llamaCompletionHost = editBuffer;
                         break;
                     case 3: // Llama n_predict
-                        if (!editBuffer.empty()) ::llamaCompletionNPredict = editBuffer;
+                        if (!editBuffer.empty()) AiSettings.llamaCompletionNPredict = editBuffer;
                         break;
                     case 4: // Ollama Model
-                        if (!editBuffer.empty()) ::ollamaModel = editBuffer;
+                        if (!editBuffer.empty()) AiSettings.ollamaModel = editBuffer;
                         break;
                     case 5: // Inline Suggestion Tokens
                         try {
-                            ::inlineSuggestionNPredict = std::stoi(editBuffer);
+                            AiSettings.inlineSuggestionNPredict = std::stoi(editBuffer);
                         } catch (...) {}
                         break;
                     case 6: // Auto Suggestion Delay
                         try {
-                            ::AUTO_SUGGESTION_DELAY = std::stoi(editBuffer);
+                            AiSettings.AUTO_SUGGESTION_DELAY = std::stoi(editBuffer);
                         } catch (...) {}
                         break;
                 }
@@ -1600,25 +1612,25 @@ void displayAISettings(int cursorY, int cursorX, int& rowOffset, const std::stri
                 // Load current value into edit buffer
                 switch (selectedSetting) {
                     case 0:
-                        editBuffer = ::AiProvider;
+                        editBuffer = AiSettings.AiProvider;
                         break;
                     case 1:
-                        editBuffer = ::authToken;
+                        editBuffer = AiSettings.authToken;
                         break;
                     case 2:
-                        editBuffer = ::llamaCompletionHost;
+                        editBuffer = AiSettings.llamaCompletionHost;
                         break;
                     case 3:
-                        editBuffer = ::llamaCompletionNPredict;
+                        editBuffer = AiSettings.llamaCompletionNPredict;
                         break;
                     case 4:
-                        editBuffer = ::ollamaModel;
+                        editBuffer = AiSettings.ollamaModel;
                         break;
                     case 5:
-                        editBuffer = std::to_string(::inlineSuggestionNPredict);
+                        editBuffer = std::to_string(AiSettings.inlineSuggestionNPredict);
                         break;
                     case 6:
-                        editBuffer = std::to_string(::AUTO_SUGGESTION_DELAY);
+                        editBuffer = std::to_string(AiSettings.AUTO_SUGGESTION_DELAY);
                         break;
                 }
             } else if (settingsCh == 27) { // Esc
@@ -1628,7 +1640,8 @@ void displayAISettings(int cursorY, int cursorX, int& rowOffset, const std::stri
     }
 }
 
-void loadConfig(std::string configPath) {
+
+void loadConfig(std::string configPath, AiProps AiSettings) {
     std::ifstream configFile(configPath);
     if (!configFile) {
         debugWrite("No config file found at " + configPath + ", using defaults.");
@@ -1640,15 +1653,13 @@ void loadConfig(std::string configPath) {
         configFile >> configJson;
 
         if (configJson.contains("AiProvider"))
-            AiProvider = configJson["AiProvider"].get<std::string>();
-        if (configJson.contains("modelPath"))
-            modelPath = configJson["modelPath"].get<std::string>();
+            AiSettings.AiProvider = configJson["AiProvider"].get<std::string>();
         if (configJson.contains("authToken"))
-            authToken = configJson["authToken"].get<std::string>();
+            AiSettings.authToken = configJson["authToken"].get<std::string>();
         if (configJson.contains("llamaCompletionHost"))
-            llamaCompletionHost = configJson["llamaCompletionHost"].get<std::string>();
+            AiSettings.llamaCompletionHost = configJson["llamaCompletionHost"].get<std::string>();
         if (configJson.contains("llamaCompletionNPredict"))
-            llamaCompletionNPredict = configJson["llamaCompletionNPredict"].get<std::string>();
+            AiSettings.llamaCompletionNPredict = configJson["llamaCompletionNPredict"].get<std::string>();
 
         debugWrite("Config loaded from " + configPath);
     } catch (const std::exception& e) {
@@ -1670,7 +1681,8 @@ std::vector<std::string> generateInlineBuffer(const std::string& inputBufferStri
     return outVector;
 }
 
-void undo(int& cursorX, int& cursorY, std::vector<std::string>& buffer, std::vector<cacheAction>& cacheActionBuffer, int& cacheIndex, int savedCacheIndex) {
+void undo(int& cursorX, int& cursorY, std::vector<std::string>& buffer, std::vector<cacheAction>& cacheActionBuffer, int& cacheIndex, int savedCacheIndex,
+            std::vector<std::string>& initialFileBuffer, bool& unsavedChanges ) {
     debugWrite("UNDO: cacheActionBuffer.size()=" + std::to_string(cacheActionBuffer.size()) + ", cacheIndex=" + std::to_string(cacheIndex));
     
     if (cacheIndex < 0) {
@@ -1710,7 +1722,8 @@ void undo(int& cursorX, int& cursorY, std::vector<std::string>& buffer, std::vec
     }
 }
 
-void redo(int& cursorX, int& cursorY, std::vector<std::string>& buffer, std::vector<cacheAction>& cacheActionBuffer, int& cacheIndex, int savedCacheIndex) {
+void redo(int& cursorX, int& cursorY, std::vector<std::string>& buffer, std::vector<cacheAction>& cacheActionBuffer, int& cacheIndex, int savedCacheIndex,
+        std::vector<std::string>& initialFileBuffer, bool& unsavedChanges) {
     if (cacheIndex >= (int)cacheActionBuffer.size() - 1) {
         debugWrite("Nothing to redo");
         return;
@@ -1734,7 +1747,8 @@ void redo(int& cursorX, int& cursorY, std::vector<std::string>& buffer, std::vec
     }
 }
 
-void getInlineSuggestion(int cursorX, int cursorY, std::vector<std::string>& buffer, int maxInlineSuggestionPromptLength, bool otherConstruct = false){
+void getInlineSuggestion(int cursorX, int cursorY, std::vector<std::string>& buffer, int maxInlineSuggestionPromptLength, AiProps AiSettings,
+        std::vector<std::string>& inlineBuffer, int& inlineBufferPosX, int& inlineBufferPosY, bool& showInlineSuggestion,  bool otherConstruct = false){
         debugWrite("Tab pressed - Triggering AI Completion");
         std::vector<std::string> vectorBeforetxt;
         
@@ -1780,8 +1794,8 @@ void getInlineSuggestion(int cursorX, int cursorY, std::vector<std::string>& buf
         debugWrite("vector: " + StrVecTxt);
         std::string promptText = getStingFromVec(vectorBeforetxt);
         debugWrite("promptText: " + promptText);
-        std::string llamaOutput = AiCompletion(promptText, (llamaCompletionHost), std::to_string(inlineSuggestionNPredict),
-                                   [](const std::string& msg){ debugWrite(msg); }, AiProvider, ollamaModel);
+        std::string llamaOutput = AiCompletion(promptText, (AiSettings.llamaCompletionHost), std::to_string(AiSettings.inlineSuggestionNPredict),
+                                   [](const std::string& msg){ debugWrite(msg); }, AiSettings.AiProvider, AiSettings.ollamaModel);
         debugWrite("LlamaOutput is: " + llamaOutput);
         // Store inline buffer and set flag to display on next draw
         inlineBuffer = generateInlineBuffer(llamaOutput);
@@ -1836,9 +1850,9 @@ void changeActiveBuffer(
     debugWrite("Switched to buffer index: " + std::to_string(newActiveIndex));
 }
 
-void reloadFile(std::string filename, std::vector<std::string>& buffer){
+void reloadFile(std::string filename, std::vector<std::string>& buffer , std::vector<std::string>& initialFileBuffer, int& lastModifiedTime , std::vector<cacheAction>& cacheActionBuffer, int& cacheIndex, int& savedCacheIndex){
     buffer.clear();
-    loadFile(filename,buffer);
+    loadFile(filename,buffer, initialFileBuffer, lastModifiedTime);
     // Reset undo/redo history when reloading file
     cacheActionBuffer.clear();
     cacheIndex = -1;
