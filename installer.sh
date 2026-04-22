@@ -4,8 +4,11 @@ if [ "$(id -u)" -ne 0 ]; then
   echo "Missing permissions. Run with sudo!"
   exit 1
 fi
+
 REPO_URL="https://github.com/idetor/Idet.git"
 INSTALL_DIR="."
+
+
 echo "Chose installation method:"
 echo "Install from downloaded/Install from repo(might not work)/Update?"
 read -rp "Chose: (install/install-repo/update) i/ir/u: " CHOICE
@@ -23,6 +26,7 @@ if [[ "$CHOICE" == "update" || "$CHOICE" == "u" || -z "$CHOICE" ]]; then
   chmod a+x idet
   cp -f idet /usr/local/bin/
   echo "Installation complete. Run 'idet' or './idet' to start the editor."
+
 elif [[ "$CHOICE" == "install-repo" || "$CHOICE" == "ir" ]]; then
   echo "Installing from repo..."
   # Create install directory if needed
@@ -46,6 +50,7 @@ elif [[ "$CHOICE" == "install-repo" || "$CHOICE" == "ir" ]]; then
   chmod +x idet
   cp -f idet /usr/local/bin/
   echo "Installation complete. Run 'idet' to start the editor."
+
 elif [[ "$CHOICE" == "install" || "$CHOICE" == "i" ]]; then
   echo "Installing from downloaded files..."
   echo "Installing dependencies..."
@@ -58,6 +63,7 @@ elif [[ "$CHOICE" == "install" || "$CHOICE" == "i" ]]; then
   chmod +x idet
   cp -f idet /usr/local/bin/
   echo "Installation complete. Run 'idet' to start the editor."
+  
 else
   echo "Invalid choice. Exiting."
   exit 1
