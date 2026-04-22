@@ -13,15 +13,24 @@
 #include <cstdlib>
 
 //#include "light/bash.hpp"
-struct AiProps{
-    std::string AiProvider;
-    std::string authToken;
-    std::string llamaCompletionHost;
-    std::string llamaCompletionNPredict;
-    std::string ollamaModel;
-    int inlineSuggestionNPredict;
-    int AUTO_SUGGESTION_DELAY;
+class AiProps{
+    public:
+        std::string AiProvider;
+        std::string authToken;
+        std::string llamaCompletionHost;
+        std::string llamaCompletionNPredict;
+        std::string ollamaModel;
+        int inlineSuggestionNPredict;
+        int AUTO_SUGGESTION_DELAY;
 
+    AiProps() 
+        : AiProvider("llamacpp"),
+          authToken(""),
+          llamaCompletionHost("http://localhost:8080"),
+          llamaCompletionNPredict("5"),
+          ollamaModel("gpt-oss:20b"),
+          inlineSuggestionNPredict(5),
+          AUTO_SUGGESTION_DELAY(3) {}
 };
 
 

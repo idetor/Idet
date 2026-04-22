@@ -1,7 +1,7 @@
 CXX = g++
 CXXFLAGS = -std=c++20
 LDFLAGS = -lncursesw -lcurl
-TARGET = idet
+TARGET = editor
 SRC = main.cpp
 
 $(TARGET): $(SRC)

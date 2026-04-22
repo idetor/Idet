@@ -83,15 +83,8 @@ int tabSpaces = 4;
 
 // AI Vars
 
-AiProps AiSettings{
-    .AiProvider = "llamacpp",
-    .authToken = "",
-    .llamaCompletionHost = "http://localhost:8080",
-    .llamaCompletionNPredict = "5",
-    .ollamaModel = "gpt-oss:20b",
-    .inlineSuggestionNPredict = 5,
-    .AUTO_SUGGESTION_DELAY = 3
-};
+AiProps AiSettings;
+
 std::string modelPath = "/var/models/tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf";
 std::string authToken = "";
 std::string llamaCompletionHost = "http://localhost:8080"; //URL of llamacpp
