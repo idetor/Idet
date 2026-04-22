@@ -445,8 +445,8 @@ int main(int argc, char* argv[]) {
                     inlineBuffer.clear();
                     debugWrite("Inline suggestion cancelled with ESC");
                 }
-                else if (selection.selectionActive) {
-                    selection.selectionActive = false;
+                else if (search.active) {
+                    search.active = false;
                     debugWrite("Selection cancelled with ESC");
                 }
                 break;
@@ -659,12 +659,12 @@ int main(int argc, char* argv[]) {
                 }
             }
             case 570: {
-                if (!selection.selectionActive){
+                if (!search.active){
                 debugWrite("shift + strg + arrow right");
-                selection.selectionActive = true;
-                selection.selStartX = cursorX;
-                selection.selStartY = cursorY;
-                selection.selEndY = cursorY;
+                search.active = true;
+                selection.startX = cursorX;
+                selection.startY = cursorY;
+                selection.endY = cursorY;
                 std::string stringAfter = subtractStringLeft(buffer[cursorY], cursorX);
                 debugWrite("cursorY pos: " + std::to_string(cursorY));
                 debugWrite("current line content:" + buffer[cursorY]);
@@ -673,7 +673,7 @@ int main(int argc, char* argv[]) {
                 debugWrite("OnRight is: " + onRight);
                 int moveRight = getUtf8StrLen(onRight);
                 cursorX += moveRight;
-                selection.selEndX = cursorX;
+                selection.endX = cursorX;
                 break;
                 }
                 else{
@@ -685,18 +685,18 @@ int main(int argc, char* argv[]) {
                     debugWrite("OnRight is: " + onRight);
                     int moveRight = getUtf8StrLen(onRight);
                     cursorX += moveRight;
-                    selection.selEndX = cursorX;
-                    debugWrite("selStartX: " + std::to_string(selection.selStartX) + " selEndX: " + std::to_string(selection.selEndX));
+                    selection.endX = cursorX;
+                    debugWrite("selStartX: " + std::to_string(selection.startX) + " selEndX: " + std::to_string(selection.endX));
                     break;
                 }
             }
             case 555:{
-                if (!selection.selectionActive){
+                if (!search.active){
                 debugWrite("shift + strg + arrow left");
-                selection.selectionActive = true;
-                selection.selStartX = cursorX;
-                selection.selStartY = cursorY;
-                selection.selEndY = cursorY;
+                search.active = true;
+                selection.startX = cursorX;
+                selection.startY = cursorY;
+                selection.endY = cursorY;
                 std::string stringBefore = subtractStringRight(buffer[cursorY], cursorX);
                 debugWrite("cursorY pos: " + std::to_string(cursorY));
                 debugWrite("current line content:" + buffer[cursorY]);
@@ -705,9 +705,9 @@ int main(int argc, char* argv[]) {
                 int moveLeft = getUtf8StrLen(onLeft);
                 cursorX -= moveLeft;
                 if (cursorX < 0) cursorX = 0;
-                selection.selEndX = cursorX;
+                selection.endX = cursorX;
                 //switchStartEnd(selStartX, selEndX);
-                debugWrite("selStartX: " + std::to_string(selection.selStartX) + " selEndX: " + std::to_string(selection.selEndX));
+                debugWrite("selStartX: " + std::to_string(selection.startX) + " selEndX: " + std::to_string(selection.endX));
 
                 break;
                 }
@@ -721,19 +721,19 @@ int main(int argc, char* argv[]) {
                     int moveLeft = getUtf8StrLen(onLeft);
                     cursorX -= moveLeft;
                     if (cursorX < 0) cursorX = 0;
-                    selection.selEndX = cursorX;
-                    debugWrite("selStartX: " + std::to_string(selection.selStartX) + " selEndX: " + std::to_string(selection.selEndX));
+                    selection.endX = cursorX;
+                    debugWrite("selStartX: " + std::to_string(selection.startX) + " selEndX: " + std::to_string(selection.endX));
                     break;
                 }
             }
             case 337:
                 // shift + up
-                debugWrite(selection.selectionActive ? "shift + arrow up - extending" : "shift + arrow up");
+                debugWrite(search.active ? "shift + arrow up - extending" : "shift + arrow up");
 
-                if (!selection.selectionActive) {
-                    selection.selectionActive = true;
-                    selection.selStartX = cursorX;
-                    selection.selStartY = cursorY;
+                if (!search.active) {
+                    search.active = true;
+                    selection.startX = cursorX;
+                    selection.startY = cursorY;
                 }
 
                 if (cursorY > 0) {
@@ -744,18 +744,18 @@ int main(int argc, char* argv[]) {
                 } else {
                     cursorX = 0;
                 }
-                selection.selEndX = cursorX;
-                selection.selEndY = cursorY;
+                selection.endX = cursorX;
+                selection.endY = cursorY;
 
                 break;
             case 336:
                 // shift + down
-                debugWrite(selection.selectionActive ? "shift + arrow down - extending" : "shift + arrow down");
+                debugWrite(search.active ? "shift + arrow down - extending" : "shift + arrow down");
 
-                if (!selection.selectionActive) {
-                    selection.selectionActive = true;
-                    selection.selStartX = cursorX;
-                    selection.selStartY = cursorY;
+                if (!search.active) {
+                    search.active = true;
+                    selection.startX = cursorX;
+                    selection.startY = cursorY;
                 }
                 if (cursorY < buffer.size() - 1) {
                     cursorY++;
@@ -765,76 +765,76 @@ int main(int argc, char* argv[]) {
                 } else {   
                     cursorX = buffer[cursorY].size();
                 }
-                selection.selEndX = cursorX;
-                selection.selEndY = cursorY;
+                selection.endX = cursorX;
+                selection.endY = cursorY;
                 break;
             
             case 540:
                 //strg + shift + end
-                debugWrite(selection.selectionActive ? "shift + end - extending" : "shift + end");
-                if (!selection.selectionActive){
-                    selection.selectionActive = true;
-                    selection.selStartX = cursorX;
-                    selection.selStartY = cursorY;
+                debugWrite(search.active ? "shift + end - extending" : "shift + end");
+                if (!search.active){
+                    search.active = true;
+                    selection.startX = cursorX;
+                    selection.startY = cursorY;
                 }
-                selection.selEndX = buffer[-1].size();
-                selection.selEndY = buffer.size();
+                selection.endX = buffer[-1].size();
+                selection.endY = buffer.size();
                 cursorX = buffer[-1].size();
                 cursorY = buffer.size();
 
                 break;
             case 545:
                 //strg + shift + home
-                debugWrite(selection.selectionActive ? "shift + home - extending" : "shift + home");
-                if (!selection.selectionActive){
-                    selection.selectionActive = true;
-                    selection.selStartX = cursorX;
-                    selection.selStartY = cursorY;
+                debugWrite(search.active ? "shift + home - extending" : "shift + home");
+                if (!search.active){
+                    search.active = true;
+                    selection.startX = cursorX;
+                    selection.startY = cursorY;
                 }
-                selection.selEndX = 0;
-                selection.selEndY = 0;
+                selection.endX = 0;
+                selection.endY = 0;
                 cursorX = 0;
                 cursorY = 0;
                 break;
             case 386:
                 // shift + end
-                debugWrite(selection.selectionActive ? "shift + end - extending" : "shift + end");
-                if (!selection.selectionActive){
-                    selection.selectionActive = true;
-                    selection.selStartX = cursorX;
-                    selection.selStartY = cursorY;
+                debugWrite(search.active ? "shift + end - extending" : "shift + end");
+                if (!search.active){
+                    search.active = true;
+                    selection.startX = cursorX;
+                    selection.startY = cursorY;
                 }
-                selection.selEndX = buffer[cursorY].size();
-                selection.selEndY = cursorY;
+                selection.endX = buffer[cursorY].size();
+                selection.endY = cursorY;
                 cursorX = buffer[cursorY].size();
                 break;
             case 391:
                 // shift + home
-                debugWrite(selection.selectionActive ? "shift + home - extending" : "shift + home");
-                if (!selection.selectionActive){
-                    selection.selectionActive = true;
-                    selection.selStartX = cursorX;
-                    selection.selStartY = cursorY;
+                debugWrite(search.active ? "shift + home - extending" : "shift + home");
+                if (!search.active){
+                    search.active = true;
+                    selection.startX = cursorX;
+                    selection.startY = cursorY;
                 }
-                selection.selEndX = 0;
-                selection.selEndY = cursorY;
+                selection.endX = 0;
+                selection.endY = cursorY;
                 cursorX = 0;
                 break;
             case 402:
                 // shift + arrow right
                 // adds 1 char to selection and moves cursor
-                if (!selection.selectionActive){
+                if (!search.active){
                 debugWrite("shift + arrow right");
-                selection.selectionActive = true;
-                selection.selStartX = cursorX;
-                selection.selStartY = cursorY;
-                selection.selEndY = cursorY;
+                search.active = true;
+                selection.startX = cursorX;
+                selection.startY = cursorY;
+                selection.endY = cursorY;
                 if (cursorY < buffer.size()) {
                     std::string stringAfter = subtractStringLeft(buffer[cursorY], cursorX);
                     if (!stringAfter.empty()) {
                         int charLen = getUtf8CharLen(stringAfter, 0);
                         cursorX += charLen;
-                        selection.selEndX = cursorX;
+                        selection.endX = cursorX;
                     }
                 }
                 break;
@@ -846,8 +846,8 @@ int main(int argc, char* argv[]) {
                         if (!stringAfter.empty()) {
                             int charLen = getUtf8CharLen(stringAfter, 0);
                             cursorX += charLen;
-                            selection.selEndX = cursorX;
-                            debugWrite("selStartX: " + std::to_string(selection.selStartX) + " selEndX: " + std::to_string(selection.selEndX));
+                            selection.endX = cursorX;
+                            debugWrite("selStartX: " + std::to_string(selection.startX) + " selEndX: " + std::to_string(selection.endX));
                         }
                     }
                     break;
@@ -855,20 +855,20 @@ int main(int argc, char* argv[]) {
             case 393:
                 // shift + arrow left
                 // adds 1 char to the left to selection and moves cursor
-                if (!selection.selectionActive){
+                if (!search.active){
                 debugWrite("shift + arrow left");
-                selection.selectionActive = true;
-                selection.selStartX = cursorX;
-                selection.selStartY = cursorY;
-                selection.selEndY = cursorY;
+                search.active = true;
+                selection.startX = cursorX;
+                selection.startY = cursorY;
+                selection.endY = cursorY;
                 if (cursorY < buffer.size()) {
                     std::string stringBefore = subtractStringRight(buffer[cursorY], cursorX);
                     if (!stringBefore.empty()) {
                         int charLen = getUtf8CharLenReverse(stringBefore);
                         cursorX -= charLen;
                         if (cursorX < 0) cursorX = 0;
-                        selection.selEndX = cursorX;
-                        debugWrite("selStartX: " + std::to_string(selection.selStartX) + " selEndX: " + std::to_string(selection.selEndX));
+                        selection.endX = cursorX;
+                        debugWrite("selStartX: " + std::to_string(selection.startX) + " selEndX: " + std::to_string(selection.endX));
                     }
                 }
                 break;
@@ -881,8 +881,8 @@ int main(int argc, char* argv[]) {
                             int charLen = getUtf8CharLenReverse(stringBefore);
                             cursorX -= charLen;
                             if (cursorX < 0) cursorX = 0;
-                            selection.selEndX = cursorX;
-                            debugWrite("selStartX: " + std::to_string(selection.selStartX) + " selEndX: " + std::to_string(selection.selEndX));
+                            selection.endX = cursorX;
+                            debugWrite("selStartX: " + std::to_string(selection.startX) + " selEndX: " + std::to_string(selection.endX));
                         }
                     }
                     break;
@@ -892,18 +892,18 @@ int main(int argc, char* argv[]) {
                 showHelp(version, lineNumberScheme);
                 break;
             case 544:
-                selection.selectionActive = false;
+                search.active = false;
                 cursorX = 0;
                 cursorY = 0;
                 break;
             case KEY_F(7):
 
-                displayAISettings(cursorY, cursorX, rowOffset, argv[1], lineNumberScheme, contentScheme, selection.selectionActive, unsavedChanges, colOffset, AiSettings);
+                displayAISettings(cursorY, cursorX, rowOffset, argv[1], lineNumberScheme, contentScheme, search.active, unsavedChanges, colOffset, AiSettings);
                 cursorX = oldXPos;
                 cursorY = oldYPos;
                 break;
             case 539:
-                selection.selectionActive = false;
+                search.active = false;
                 if (!buffer.empty()) {
                     cursorY = static_cast<int>(buffer.size() - 1);
                     cursorX = static_cast<int>(buffer.back().size());
@@ -913,12 +913,12 @@ int main(int argc, char* argv[]) {
                 }
                 break;
             case 330:
-                if (selection.selectionActive) {
+                if (search.active) {
                     // Delete selected content
-                    int startX = selection.selStartX;
-                    int startY = selection.selStartY;
-                    int endX   = selection.selEndX;
-                    int endY   = selection.selEndY;
+                    int startX = selection.startX;
+                    int startY = selection.startY;
+                    int endX   = selection.endX;
+                    int endY   = selection.endY;
 
                     if (startY > endY || (startY == endY && startX > endX)) {
                         std::swap(startX, endX);
@@ -937,7 +937,7 @@ int main(int argc, char* argv[]) {
                     }
                     cursorX = startX;
                     cursorY = startY;
-                    selection.selectionActive = false;
+                    search.active = false;
                     unsavedChanges = true;
                 } else if (cursorY >= 0 && cursorY < static_cast<int>(buffer.size())) {
                     std::string &line = buffer[cursorY];
@@ -953,18 +953,18 @@ int main(int argc, char* argv[]) {
                 }
                 break;
             case KEY_F(3):
-                if (!selection.selectionActive) {
-                    selection.selectionActive = true;
-                    selection.selStartY = selection.selEndY = cursorY;
-                    selection.selStartX = selection.selEndX = cursorX;
+                if (!search.active) {
+                    search.active = true;
+                    selection.startY = selection.endY = cursorY;
+                    selection.startX = selection.endX = cursorX;
                     debugWrite("Selection started at (" +
-                            std::to_string(selection.selStartY) + "," +
-                            std::to_string(selection.selStartX) + ")");
+                            std::to_string(selection.startY) + "," +
+                            std::to_string(selection.startX) + ")");
                 } else {
-                    selection.selectionActive = false;
+                    search.active = false;
                     debugWrite("Selection ended at (" +
-                            std::to_string(selection.selEndY) + "," +
-                            std::to_string(selection.selEndX) + ")");
+                            std::to_string(selection.endY) + "," +
+                            std::to_string(selection.endX) + ")");
                 }
                 break;
             case 18:
@@ -983,20 +983,20 @@ int main(int argc, char* argv[]) {
                 }
                 break;
             case 1:
-                selection.selectionActive = true;
-                selection.selStartX = 0;
-                selection.selStartY = 0;
-                selection.selEndX = buffer[buffer.size()].size();
-                selection.selEndY = buffer.size();
+                search.active = true;
+                selection.startX = 0;
+                selection.startY = 0;
+                selection.endX = buffer[buffer.size()].size();
+                selection.endY = buffer.size();
                 continue;
                 break;
             case CTRL_KEY('c'):
-                if (selection.selectionActive) {
+                if (search.active) {
                     clipboard.clear();
-                    copyClipboard(std::min(selection.selStartY, selection.selEndY),
-                                std::max(selection.selStartY, selection.selEndY), buffer, clipboard, selection);
+                    copyClipboard(std::min(selection.startY, selection.endY),
+                                std::max(selection.startY, selection.endY), buffer, clipboard, selection);
                     debugWrite("Copied to clipboard: " + clipboard);
-                    selection.selectionActive = false;
+                    search.active = false;
                 }
                 break;
             case CTRL_KEY('v'):
@@ -1031,37 +1031,37 @@ int main(int argc, char* argv[]) {
                 cursorX = std::min(cursorX, getUtf8StrLen(buffer[cursorY]));
                 showInlineSuggestion = false;
                 inlineSuggestionExists = false;
-                selection.selectionActive = false;
+                search.active = false;
                 break;
             case KEY_DOWN:
                 if (cursorY < static_cast<int>(buffer.size()) - 1) cursorY++;
                 showInlineSuggestion = false;
                 inlineSuggestionExists = false;
-                selection.selectionActive = false;
+                search.active = false;
                 cursorX = std::min(cursorX, getUtf8StrLen(buffer[cursorY]));
                 break;
             case KEY_LEFT:
                 if (cursorX > 0) cursorX--;
                 showInlineSuggestion = false;
                 inlineSuggestionExists = false;
-                selection.selectionActive = false;
+                search.active = false;
                 break;
             case KEY_RIGHT: {
                 int charCount = getUtf8StrLen(buffer[cursorY]);
                 if (cursorX < charCount) cursorX++;
                 showInlineSuggestion = false;
                 inlineSuggestionExists = false;
-                selection.selectionActive = false;
+                search.active = false;
                 break;
             }
             case KEY_HOME:
                 cursorX = 0;
                 showInlineSuggestion = false;
                 inlineSuggestionExists = false;
-                selection.selectionActive = false;
+                search.active = false;
                 break;
             case KEY_END: {
-                selection.selectionActive = false;
+                search.active = false;
                 cursorX = getUtf8StrLen(buffer[cursorY]);
                 showInlineSuggestion = false;
                 inlineSuggestionExists = false;
@@ -1084,12 +1084,12 @@ int main(int argc, char* argv[]) {
                 showInlineSuggestion = false;
                 inlineSuggestionExists = false;
                 unsavedChanges = true;
-                if (selection.selectionActive) {
+                if (selection.active) {
                     // Delete selected content
-                    int startX = selection.selStartX;
-                    int startY = selection.selStartY;
-                    int endX   = selection.selEndX;
-                    int endY   = selection.selEndY;
+                    int startX = selection.startX;
+                    int startY = selection.startY;
+                    int endX   = selection.endX;
+                    int endY   = selection.endY;
 
                     if (startY > endY || (startY == endY && startX > endX)) {
                         std::swap(startX, endX);
@@ -1108,7 +1108,7 @@ int main(int argc, char* argv[]) {
                     }
                     cursorX = startX;
                     cursorY = startY;
-                    selection.selectionActive = false;
+                    selection.active = false;
                 } else if (cursorX > 0) {
                     
                     int spacesBeforeCursor = NdirectspacesBeforeNum(buffer[cursorY], cursorX);
@@ -1140,11 +1140,11 @@ int main(int argc, char* argv[]) {
                 break;
             default: {
                 // Handle selection deletion first if selection is active
-                if(selection.selectionActive){
-                    int startX = selection.selStartX;
-                    int startY = selection.selStartY;
-                    int endX   = selection.selEndX;
-                    int endY   = selection.selEndY;
+                if(search.active){
+                    int startX = selection.startX;
+                    int startY = selection.startY;
+                    int endX   = selection.endX;
+                    int endY   = selection.endY;
 
                     if (startY > endY || (startY == endY && startX > endX)) {
                         std::swap(startX, endX);
@@ -1163,7 +1163,7 @@ int main(int argc, char* argv[]) {
                     }
                     cursorX = startX;
                     cursorY = startY;
-                    selection.selectionActive = false;
+                    search.active = false;
                     inplacementHappened = true;
                     debugWrite("Inplacement Happened" + std::to_string(inplacementHappened));
                 }
@@ -1228,7 +1228,7 @@ int main(int argc, char* argv[]) {
             
             // Only cache certain actions that change buffer state
             if (ch >= 32 || ch == 10 || ch == KEY_BACKSPACE || ch == 127 || 
-                ch == 330 || ch == CTRL_KEY('k') || ch == CTRL_KEY('v') || ch == 9 || (ch < 32 && selection.selectionActive || inplacementHappened)) {
+                ch == 330 || ch == CTRL_KEY('k') || ch == CTRL_KEY('v') || ch == 9 || (ch < 32 && search.active || inplacementHappened)) {
                 
                 // For paste operations, track the size of pasted content
                 int pasteSize = 0;
@@ -1241,9 +1241,9 @@ int main(int argc, char* argv[]) {
         }
 
         // Update selection end
-        if (selection.selectionActive) {
-            selection.selEndY = cursorY;
-            selection.selEndX = cursorX;
+        if (search.active) {
+            selection.endY = cursorY;
+            selection.endX = cursorX;
         }
     }
 

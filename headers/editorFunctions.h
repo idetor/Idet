@@ -30,13 +30,27 @@ struct closeXPos{
 
 class SelectionElements {
     public:
+        bool active;
+        int startX;
+        int startY;
+        int endX;
+        int endY;
+        
+        // legacy
         int selStartX;
         int selStartY;
         int selEndX;
         int selEndY;
         bool selectionActive;
     SelectionElements()
-        : selStartX(0),
+        : 
+          active(false),
+          startX(0),
+          startY(0),
+          endX(0),
+          endY(0),
+          //legacy
+          selStartX(0),
           selStartY(0),
           selEndX(0),
           selEndY(0),
@@ -997,28 +1011,28 @@ bool isDirectory(std::string filename) {
 void changeFileElements(std::vector<fileElements>& fileElementsBuffer,int activeBufferIndex, int changingToIndex, int& lastModifiedTime, bool& unsavedChanges , int& cursorX , int& cursorY , SelectionElements& selection){
     fileElementsBuffer[activeBufferIndex].lastModified = lastModifiedTime;
     fileElementsBuffer[activeBufferIndex].isChanged = unsavedChanges;
-    fileElementsBuffer[activeBufferIndex].selStartX = selection.selStartX;
-    fileElementsBuffer[activeBufferIndex].selStartY = selection.selStartY;
-    fileElementsBuffer[activeBufferIndex].selEndX = selection.selEndX;
-    fileElementsBuffer[activeBufferIndex].selEndY = selection.selEndY;
+    fileElementsBuffer[activeBufferIndex].selStartX = selection.startX;
+    fileElementsBuffer[activeBufferIndex].selStartY = selection.startY;
+    fileElementsBuffer[activeBufferIndex].selEndX = selection.endX;
+    fileElementsBuffer[activeBufferIndex].selEndY = selection.endY;
     fileElementsBuffer[activeBufferIndex].cursorX = cursorX;
     fileElementsBuffer[activeBufferIndex].cursorY = cursorY;
     lastModifiedTime = fileElementsBuffer[changingToIndex].lastModified;
     unsavedChanges = fileElementsBuffer[changingToIndex].isChanged;
-    selection.selStartX = fileElementsBuffer[changingToIndex].selStartX;
-    selection.selStartY = fileElementsBuffer[changingToIndex].selStartY;
-    selection.selEndX = fileElementsBuffer[changingToIndex].selEndX;
-    selection.selEndY = fileElementsBuffer[changingToIndex].selEndY;
+    selection.startX = fileElementsBuffer[changingToIndex].selStartX;
+    selection.startY = fileElementsBuffer[changingToIndex].selStartY;
+    selection.endX = fileElementsBuffer[changingToIndex].selEndX;
+    selection.endY = fileElementsBuffer[changingToIndex].selEndY;
     cursorX = fileElementsBuffer[changingToIndex].cursorX;
     cursorY = fileElementsBuffer[changingToIndex].cursorY;
 }
 void SetInfileElements(std::vector<fileElements>& fileElementsBuffer, int Index , int& lastModifiedTime, bool& unsavedChanges, SelectionElements& selection, int& cursorX, int& cursorY) {
     lastModifiedTime = fileElementsBuffer[Index].lastModified;
     unsavedChanges = fileElementsBuffer[Index].isChanged;
-    selection.selStartX = fileElementsBuffer[Index].selStartX;
-    selection.selStartY = fileElementsBuffer[Index].selStartY;
-    selection.selEndX = fileElementsBuffer[Index].selEndX;
-    selection.selEndY = fileElementsBuffer[Index].selEndY;
+    selection.startX = fileElementsBuffer[Index].selStartX;
+    selection.startY = fileElementsBuffer[Index].selStartY;
+    selection.endX = fileElementsBuffer[Index].selEndX;
+    selection.endY = fileElementsBuffer[Index].selEndY;
     cursorX = fileElementsBuffer[Index].cursorX;
     cursorY = fileElementsBuffer[Index].cursorY;
 }
@@ -1236,8 +1250,8 @@ void saveFile(const std::string& filename , int& lastModifiedTime, bool& unsaved
 
 void copyClipboard(int startY , int endY, std::vector<std::string>& buffer, std::string& clipboard, SelectionElements& selection){
             for (int y = startY; y <= endY; y++) {
-                int lineStartX = (y == selection.selStartY) ? std::min(selection.selStartX, selection.selEndX) : 0;
-                int lineEndX   = (y == selection.selEndY) ? std::max(selection.selStartX, selection.selEndX) : buffer[y].size();
+                int lineStartX = (y == selection.startY) ? std::min(selection.startX, selection.endX) : 0;
+                int lineEndX   = (y == selection.endY) ? std::max(selection.startX, selection.endX) : buffer[y].size();
                 clipboard += buffer[y].substr(lineStartX, lineEndX - lineStartX);
                 if (y != endY) clipboard += "\n";
             }
@@ -1382,7 +1396,7 @@ if (multiFileMode) {
 mvprintw(0, 0, "Idet-Editor - File: %s%s | Selection: %s | Suggestion Length: %d | File: %d/%ld",
          filename.c_str(),
          unsavedChanges ? "*" : "",
-         selection.selectionActive ? "ON" : "OFF", 
+         selection.active ? "ON" : "OFF", 
         inlineSuggestionNPredict,
         activeBufferIndex + 1,
         fileList.size()
@@ -1391,13 +1405,13 @@ mvprintw(0, 0, "Idet-Editor - File: %s%s | Selection: %s | Suggestion Length: %d
 mvprintw(0, 0, "Idet-Editor - File: %s%s | Selection: %s | Suggestion Length: %d",
          filename.c_str(),
          unsavedChanges ? "*" : "",
-         selection.selectionActive ? "ON" : "OFF", 
+         selection.active ? "ON" : "OFF", 
         inlineSuggestionNPredict
         );
     }
 attroff(A_BOLD);
-int selTop = std::min(selection.selStartY, selection.selEndY);
-int selBottom = std::max(selection.selStartY, selection.selEndY);
+int selTop = std::min(selection.startY, selection.endY);
+int selBottom = std::max(selection.startY, selection.endY);
 for (int i = 0; i < maxRows && (rowOffset + i) < (int)buffer.size(); ++i) {
     int fileLine = rowOffset + i;
 
@@ -1431,14 +1445,14 @@ for (int i = 0; i < maxRows && (rowOffset + i) < (int)buffer.size(); ++i) {
         int screenX = lineNumberWidth + (x - colOffset);
         bool inSelection = false;
 
-        if (selection.selectionActive) {
+        if (selection.active) {
             if (fileLine > selTop && fileLine < selBottom) inSelection = true;
             else if (fileLine == selTop && fileLine == selBottom)
-                inSelection = (x >= std::min(selection.selStartX, selection.selEndX) && x < std::max(selection.selStartX, selection.selEndX));
+                inSelection = (x >= std::min(selection.startX, selection.endX) && x < std::max(selection.startX, selection.endX));
             else if (fileLine == selTop)
-                inSelection = (x >= selection.selStartX);
+                inSelection = (x >= selection.startX);
             else if (fileLine == selBottom)
-                inSelection = (x < selection.selEndX);
+                inSelection = (x < selection.endX);
         }
 
         // Determine color based on syntax highlighting
