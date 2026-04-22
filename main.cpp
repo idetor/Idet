@@ -39,6 +39,14 @@ const std::string version = "0.1.5-alpha";
 
 // General Vars
 
+SelectionElements selection;
+std::string clipboard;
+configElement config;
+AiProps AiSettings;
+AiUtils AiVars;
+SearchElement search;
+cursorElement cursor;
+
 int lastModifiedTime = 0;
 std::vector<std::string> buffer;
 std::vector<std::string> initialFileBuffer;
@@ -46,14 +54,7 @@ std::vector<std::string> inlineBuffer;
 int inlineBufferPosX = 0;
 int inlineBufferPosY = 0;
 
-SelectionElements selection;
 
-std::string clipboard;
-
-
-SearchElement search;
-
-cursorElement cursor;
 
 std::string detectedLang = "";
 std::vector<fileElements> fileElementsBuffer;
@@ -76,33 +77,17 @@ int activeBufferIndex = 0;
 std::vector<char> openCharList;
 
 
-// Configurable
-int lineNumberScheme = 1; // 1 or 2
-int contentScheme = 3;    // 3 or 4
-const size_t DEBUG_MAX = 10000;
-int maxCacheNum = 100;
-bool multiFileMode = false;
-int tabSpaces = 4;
 
-// AI Vars
 
-AiProps AiSettings;
-
-bool llamaInit = false;
-bool modelLoaded = false;
-bool showInlineSuggestion = false;
-bool inlineSuggestionExists = false;
-bool allowInlineSuggestion = true;
-bool autoSuggestionTriggered = false;
 
 
 void debugWrite(std::ofstream& out, const std::string& msg) {
     if (!out.is_open()) return;
 
-    if (msg.size() <= DEBUG_MAX) {
+    if (msg.size() <= config.DEBUG_MAX) {
         out << msg;
     } else {
-        out << msg.substr(0, DEBUG_MAX);
+        out << msg.substr(0, config.DEBUG_MAX);
     }
 }
 
@@ -120,7 +105,7 @@ int main(int argc, char* argv[]) {
     // check the early args
     for (int i = 1; i < argc; i++) {
         if (tolowerString(std::string(argv[i])) == "--multifile") {
-            multiFileMode = true;
+            config.multiFileMode = true;
         }
         if (std::string(argv[i]) == "--config") {
             configPath = argv[i + 1];
@@ -180,7 +165,7 @@ int main(int argc, char* argv[]) {
         }
         else if (arg[0] != '-') {
             
-            if (multiFileMode) {
+            if (config.multiFileMode) {
                 fileList.push_back(arg);
                 //std::cerr << "Adding file: " << arg << "\n";
             } else {
@@ -190,14 +175,14 @@ int main(int argc, char* argv[]) {
     }
 
 
-    if (multiFileMode){
+    if (config.multiFileMode){
         if (fileList.empty()){
             std::cerr << "Multi-file mode enabled but no files provided!\n";
             return 1;
         }
         debugWrite("Files to load: " + strVecToString(fileList));
         filename = fileList[0]; // set first file as main buffer file
-        if(multiFileMode == true){
+        if(config.multiFileMode == true){
             loadInfileElements(fileElementsBuffer, filename);
         }
         
@@ -235,7 +220,7 @@ int main(int argc, char* argv[]) {
     }
     
     
-    if (multiFileMode == true) {
+    if (config.multiFileMode == true) {
         
         inactiveBuffer.push_back(buffer);
         buffer.clear();
@@ -311,7 +296,7 @@ int main(int argc, char* argv[]) {
 
     auto initTime = std::chrono::system_clock::now();
     lastEditTime = std::chrono::system_clock::to_time_t(initTime);
-    if(multiFileMode){
+    if(config.multiFileMode){
         SetInfileElements(fileElementsBuffer, activeBufferIndex, lastModifiedTime, unsavedChanges, selection, cursor);
     }
     while (true) {
@@ -327,11 +312,11 @@ int main(int argc, char* argv[]) {
         }
         
         draw(cursor, rowOffset,
-            filename, lineNumberScheme, contentScheme,
+            filename, config.lineNumberScheme, config.contentScheme,
              unsavedChanges, colOffset,
-            AiSettings.inlineSuggestionNPredict, multiFileMode, fileList,
+            AiSettings.inlineSuggestionNPredict, config.multiFileMode, fileList,
             activeBufferIndex, detectedLang, buffer,
-            showInlineSuggestion, lastModifiedTime,
+            AiVars.showInlineSuggestion, lastModifiedTime,
             tabOverlayActive, tabParams, inlineBuffer,
             inlineBufferPosX, inlineBufferPosY, selection);
         if (search.active) {
@@ -369,12 +354,12 @@ int main(int argc, char* argv[]) {
         std::time_t timeNow = std::chrono::system_clock::to_time_t(now);
         int timeSinceLastEdit = static_cast<int>(timeNow - lastEditTime);
         
-        if (timeSinceLastEdit >= AiSettings.AUTO_SUGGESTION_DELAY && !autoSuggestionTriggered && 
-            !showInlineSuggestion && !inlineSuggestionExists && allowInlineSuggestion) {
+        if (timeSinceLastEdit >= AiSettings.AUTO_SUGGESTION_DELAY && !AiVars.autoSuggestionTriggered && 
+            !AiVars.showInlineSuggestion && !AiVars.inlineSuggestionExists && AiVars.allowInlineSuggestion) {
             debugWrite("Auto-triggering inline suggestion after " + std::to_string(timeSinceLastEdit) + " seconds");
-            getInlineSuggestion(cursor, buffer, AiSettings.maxInlinePromptSize, AiSettings, inlineBuffer, inlineBufferPosX, inlineBufferPosY, showInlineSuggestion);
-            inlineSuggestionExists = true;
-            autoSuggestionTriggered = true;
+            getInlineSuggestion(cursor, buffer, AiSettings.maxInlinePromptSize, AiSettings, inlineBuffer, inlineBufferPosX, inlineBufferPosY, AiVars.showInlineSuggestion);
+            AiVars.inlineSuggestionExists = true;
+            AiVars.autoSuggestionTriggered = true;
             detectLanguage(buffer, detectedLang, filename); 
         }
 
@@ -383,7 +368,7 @@ int main(int argc, char* argv[]) {
         if (ch != ERR) {
             auto now = std::chrono::system_clock::now();
             lastEditTime = std::chrono::system_clock::to_time_t(now);
-            autoSuggestionTriggered = false;
+            AiVars.autoSuggestionTriggered = false;
             debugWrite("Key pressed: " + std::to_string(ch));
             
 
@@ -441,8 +426,8 @@ int main(int argc, char* argv[]) {
                 }
                 break;
             case 27: // ESC key
-                if (showInlineSuggestion) {
-                    showInlineSuggestion = false;
+                if (AiVars.showInlineSuggestion) {
+                    AiVars.showInlineSuggestion = false;
                     inlineBuffer.clear();
                     debugWrite("Inline suggestion cancelled with ESC");
                 }
@@ -463,7 +448,7 @@ int main(int argc, char* argv[]) {
                 break;
             case 569:
                 debugWrite("CTRL+Tab pressed - Switch to next buffer with active buffer index: " + std::to_string(activeBufferIndex));
-                    if (multiFileMode && activeBufferIndex < inactiveBuffer.size() - 1) {
+                    if (config.multiFileMode && activeBufferIndex < inactiveBuffer.size() - 1) {
                         changeFileElements(fileElementsBuffer,activeBufferIndex,activeBufferIndex + 1,lastModifiedTime,unsavedChanges, cursor ,selection);
                         changeActiveBuffer(inactiveBuffer,buffer, activeBufferIndex, activeBufferIndex + 1);
                         filename = fileList[activeBufferIndex];
@@ -477,7 +462,7 @@ int main(int argc, char* argv[]) {
                     }
             case 291:
                 debugWrite("CTRL+Tab pressed - Switch to next buffer with active buffer index: " + std::to_string(activeBufferIndex));
-                    if (multiFileMode && activeBufferIndex < inactiveBuffer.size() - 1) {
+                    if (config.multiFileMode && activeBufferIndex < inactiveBuffer.size() - 1) {
                         changeFileElements(fileElementsBuffer,activeBufferIndex,activeBufferIndex + 1,lastModifiedTime,unsavedChanges, cursor, selection);
                         changeActiveBuffer(inactiveBuffer,buffer, activeBufferIndex, activeBufferIndex + 1);
                         filename = fileList[activeBufferIndex];
@@ -491,7 +476,7 @@ int main(int argc, char* argv[]) {
                     }
             case 554:
                 debugWrite("CTRL+Shift+Tab pressed - Switch to previous buffer with active buffer index: " + std::to_string(activeBufferIndex));
-                    if (multiFileMode && activeBufferIndex > 0) {
+                    if (config.multiFileMode && activeBufferIndex > 0) {
                         changeFileElements(fileElementsBuffer,activeBufferIndex,activeBufferIndex - 1,lastModifiedTime,unsavedChanges, cursor, selection);
                         changeActiveBuffer(inactiveBuffer,buffer, activeBufferIndex,activeBufferIndex - 1);
                         filename = fileList[activeBufferIndex];
@@ -505,7 +490,7 @@ int main(int argc, char* argv[]) {
                     }
             case 290:
                 debugWrite("CTRL+Shift+Tab pressed - Switch to previous buffer with active buffer index: " + std::to_string(activeBufferIndex));
-                    if (multiFileMode && activeBufferIndex > 0) {
+                    if (config.multiFileMode && activeBufferIndex > 0) {
                         changeFileElements(fileElementsBuffer,activeBufferIndex,activeBufferIndex - 1,lastModifiedTime,unsavedChanges, cursor , selection);
                         changeActiveBuffer(inactiveBuffer,buffer, activeBufferIndex,activeBufferIndex - 1);
                         filename = fileList[activeBufferIndex];
@@ -518,13 +503,13 @@ int main(int argc, char* argv[]) {
                         break;
                     }
             case KEY_F(2):
-                lineNumberScheme = (lineNumberScheme == 1) ? 2 : 1;
-                contentScheme    = (contentScheme == 3) ? 4 : 3;
+                config.lineNumberScheme = (config.lineNumberScheme == 1) ? 2 : 1;
+                config.contentScheme    = (config.contentScheme == 3) ? 4 : 3;
                 break;
             case 9:
                 // TAB accepts inline suggestion or inserts spaces
                 {
-                    if (inlineSuggestionExists && !inlineBuffer.empty()) {
+                    if (AiVars.inlineSuggestionExists && !inlineBuffer.empty()) {
                         // Accept inline suggestion with Tab
                         debugWrite("Accepting inline suggestion via Tab");
                         for (size_t i = 0; i < inlineBuffer.size(); ++i) {
@@ -551,20 +536,20 @@ int main(int argc, char* argv[]) {
                             }
                         }
                         unsavedChanges = true;
-                        showInlineSuggestion = false;
-                        inlineSuggestionExists = false;
+                        AiVars.showInlineSuggestion = false;
+                        AiVars.inlineSuggestionExists = false;
                         inlineBuffer.clear();
                     } else {
                         // No suggestion - insert tab spaces
                         std::size_t bytePos = char_to_byte_index(buffer[cursor.Y], cursor.X);
-                        buffer[cursor.Y].insert(bytePos, tabSpaces, ' ');
-                        cursor.X += tabSpaces;
+                        buffer[cursor.Y].insert(bytePos, config.tabSpaces, ' ');
+                        cursor.X += config.tabSpaces;
                         unsavedChanges = true;
                     }
                 }
                 break;
             case 0: {
-                if (inlineSuggestionExists == false){
+                if (AiVars.inlineSuggestionExists == false){
                     debugWrite("Tab pressed - Triggering AI Completion");
                     std::vector<std::string> vectorBeforetxt;
                     vectorBeforetxt.reserve(static_cast<size_t>(cursor.Y) + 1);
@@ -653,8 +638,8 @@ int main(int argc, char* argv[]) {
                         }
                         unsavedChanges = true;
                     }
-                    showInlineSuggestion = false;
-                    inlineSuggestionExists = false;
+                    AiVars.showInlineSuggestion = false;
+                    AiVars.inlineSuggestionExists = false;
                     inlineBuffer.clear();
                     break;
                 }
@@ -892,7 +877,7 @@ int main(int argc, char* argv[]) {
                 }
 
             case KEY_F(1):
-                showHelp(version, lineNumberScheme);
+                showHelp(version, config.lineNumberScheme);
                 break;
             case 544:
                 search.active = false;
@@ -901,7 +886,7 @@ int main(int argc, char* argv[]) {
                 break;
             case KEY_F(7):
 
-                displayAISettings(cursor, rowOffset, argv[1], lineNumberScheme, contentScheme, search.active, unsavedChanges, colOffset, AiSettings);
+                displayAISettings(cursor, rowOffset, argv[1], config.lineNumberScheme, config.contentScheme, search.active, unsavedChanges, colOffset, AiSettings);
                 cursor.X = oldXPos;
                 cursor.Y = oldYPos;
                 break;
@@ -1005,8 +990,8 @@ int main(int argc, char* argv[]) {
                 }
                 break;
             case CTRL_KEY('v'):
-                showInlineSuggestion = false;
-                inlineSuggestionExists = false;
+                AiVars.showInlineSuggestion = false;
+                AiVars.inlineSuggestionExists = false;
                 if (!clipboard.empty()) {
                     pasteClipboard(cursor.Y, cursor.X, buffer, clipboard);
                     debugWrite("Pasted from clipboard at (" +
@@ -1015,8 +1000,8 @@ int main(int argc, char* argv[]) {
                 }
                 break;
             case CTRL_KEY('k'):
-                showInlineSuggestion = false;
-                inlineSuggestionExists = false;
+                AiVars.showInlineSuggestion = false;
+                AiVars.inlineSuggestionExists = false;
                 if (cursor.Y < static_cast<int>(buffer.size())) {
                     buffer.erase(buffer.begin() + cursor.Y);
                     if (cursor.Y >= static_cast<int>(buffer.size())) cursor.Y = buffer.size() - 1;
@@ -1034,47 +1019,47 @@ int main(int argc, char* argv[]) {
             case KEY_UP:
                 if (cursor.Y > 0) cursor.Y--;
                 cursor.X = std::min(cursor.X, getUtf8StrLen(buffer[cursor.Y]));
-                showInlineSuggestion = false;
-                inlineSuggestionExists = false;
+                AiVars.showInlineSuggestion = false;
+                AiVars.inlineSuggestionExists = false;
                 search.active = false;
                 break;
             case KEY_DOWN:
                 if (cursor.Y < static_cast<int>(buffer.size()) - 1) cursor.Y++;
-                showInlineSuggestion = false;
-                inlineSuggestionExists = false;
+                AiVars.showInlineSuggestion = false;
+                AiVars.inlineSuggestionExists = false;
                 search.active = false;
                 cursor.X = std::min(cursor.X, getUtf8StrLen(buffer[cursor.Y]));
                 break;
             case KEY_LEFT:
                 if (cursor.X > 0) cursor.X--;
-                showInlineSuggestion = false;
-                inlineSuggestionExists = false;
+                AiVars.showInlineSuggestion = false;
+                AiVars.inlineSuggestionExists = false;
                 search.active = false;
                 break;
             case KEY_RIGHT: {
                 int charCount = getUtf8StrLen(buffer[cursor.Y]);
                 if (cursor.X < charCount) cursor.X++;
-                showInlineSuggestion = false;
-                inlineSuggestionExists = false;
+                AiVars.showInlineSuggestion = false;
+                AiVars.inlineSuggestionExists = false;
                 search.active = false;
                 break;
             }
             case KEY_HOME:
                 cursor.X = 0;
-                showInlineSuggestion = false;
-                inlineSuggestionExists = false;
+                AiVars.showInlineSuggestion = false;
+                AiVars.inlineSuggestionExists = false;
                 search.active = false;
                 break;
             case KEY_END: {
                 search.active = false;
                 cursor.X = getUtf8StrLen(buffer[cursor.Y]);
-                showInlineSuggestion = false;
-                inlineSuggestionExists = false;
+                AiVars.showInlineSuggestion = false;
+                AiVars.inlineSuggestionExists = false;
                 break;
             }
             case 10: {
-                showInlineSuggestion = false;
-                inlineSuggestionExists = false;
+                AiVars.showInlineSuggestion = false;
+                AiVars.inlineSuggestionExists = false;
                 std::size_t bytePos = char_to_byte_index(buffer[cursor.Y], cursor.X);
                 std::string newLine = buffer[cursor.Y].substr(bytePos);
                 buffer[cursor.Y] = buffer[cursor.Y].substr(0, bytePos);
@@ -1086,8 +1071,8 @@ int main(int argc, char* argv[]) {
             case KEY_BACKSPACE:
                 unsavedChanges = true;
             case 127: {
-                showInlineSuggestion = false;
-                inlineSuggestionExists = false;
+                AiVars.showInlineSuggestion = false;
+                AiVars.inlineSuggestionExists = false;
                 unsavedChanges = true;
                 if (selection.active) {
                     // Delete selected content
@@ -1120,8 +1105,8 @@ int main(int argc, char* argv[]) {
                     int deleteCount = 1; 
                     
                     
-                    if (spacesBeforeCursor > 0 && spacesBeforeCursor % tabSpaces == 0) {
-                        deleteCount = tabSpaces;
+                    if (spacesBeforeCursor > 0 && spacesBeforeCursor % config.tabSpaces == 0) {
+                        deleteCount = config.tabSpaces;
                     }
                     
                     
@@ -1195,8 +1180,8 @@ int main(int argc, char* argv[]) {
                     buffer[cursor.Y].insert(bytePos, utf8_char);
                     cursor.X += 1;
                     unsavedChanges = true;
-                    showInlineSuggestion = false;
-                    inlineSuggestionExists = false;
+                    AiVars.showInlineSuggestion = false;
+                    AiVars.inlineSuggestionExists = false;
                     break;
                 }
                 if (ch >= 32 && ch <= 126) {
@@ -1219,8 +1204,8 @@ int main(int argc, char* argv[]) {
                     }
                     
                     unsavedChanges = true;
-                    showInlineSuggestion = false;
-                    inlineSuggestionExists = false;
+                    AiVars.showInlineSuggestion = false;
+                    AiVars.inlineSuggestionExists = false;
                     break;
                 }
                 break;
@@ -1241,7 +1226,7 @@ int main(int argc, char* argv[]) {
                     pasteSize = clipboard.size();
                 }
                 debugWrite("Appending CacheActionBuffer");
-                appendCacheActionBuffer(bufferBeforeAction, buffer, ch, cursor.X, cursor.Y, cacheActionBuffer, maxCacheNum, cacheIndex, pasteSize);
+                appendCacheActionBuffer(bufferBeforeAction, buffer, ch, cursor.X, cursor.Y, cacheActionBuffer, config.maxCacheNum, cacheIndex, pasteSize);
             }
         }
 

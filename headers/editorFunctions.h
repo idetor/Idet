@@ -121,6 +121,39 @@ class AiProps{
           AUTO_SUGGESTION_DELAY(3) {}
 };
 
+class configElement{
+    public:
+        int lineNumberScheme;
+        int contentScheme;
+        const size_t DEBUG_MAX;
+        int maxCacheNum;
+        bool multiFileMode;
+        int tabSpaces;
+    configElement()
+        : lineNumberScheme(1),
+        contentScheme(3),
+        DEBUG_MAX(10000),
+        maxCacheNum(100),
+        multiFileMode(false),
+        tabSpaces(4){}
+};
+
+class AiUtils{
+    public:
+        bool llamaInit;
+        bool modelLoaded;
+        bool showInlineSuggestion;
+        bool inlineSuggestionExists;
+        bool allowInlineSuggestion;
+        bool autoSuggestionTriggered;
+        AiUtils()
+            : llamaInit(false),
+              modelLoaded(false),
+              showInlineSuggestion(false),
+              inlineSuggestionExists(false),
+              allowInlineSuggestion(false),
+              autoSuggestionTriggered(false){}
+};
 
 struct FileProperties{
     int lastModifiedTime;
