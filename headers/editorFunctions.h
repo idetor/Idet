@@ -963,31 +963,31 @@ bool isDirectory(std::string filename) {
     return S_ISDIR(buffer.st_mode); 
 }
 
-void changeFileElements(std::vector<fileElements>& fileElementsBuffer,int activeBufferIndex, int changingToIndex, int& lastModifiedTime, bool& unsavedChanges, int& selStartX, int& selStartY, int& selEndX , int& selEndY , int& cursorX , int& cursorY){
+void changeFileElements(std::vector<fileElements>& fileElementsBuffer,int activeBufferIndex, int changingToIndex, int& lastModifiedTime, bool& unsavedChanges , int& cursorX , int& cursorY , SelectionElements& selection){
     fileElementsBuffer[activeBufferIndex].lastModified = lastModifiedTime;
     fileElementsBuffer[activeBufferIndex].isChanged = unsavedChanges;
-    fileElementsBuffer[activeBufferIndex].selStartX = selStartX;
-    fileElementsBuffer[activeBufferIndex].selStartY = selStartY;
-    fileElementsBuffer[activeBufferIndex].selEndX = selEndX;
-    fileElementsBuffer[activeBufferIndex].selEndY = selEndY;
+    fileElementsBuffer[activeBufferIndex].selStartX = selection.selStartX;
+    fileElementsBuffer[activeBufferIndex].selStartY = selection.selStartY;
+    fileElementsBuffer[activeBufferIndex].selEndX = selection.selEndX;
+    fileElementsBuffer[activeBufferIndex].selEndY = selection.selEndY;
     fileElementsBuffer[activeBufferIndex].cursorX = cursorX;
     fileElementsBuffer[activeBufferIndex].cursorY = cursorY;
     lastModifiedTime = fileElementsBuffer[changingToIndex].lastModified;
     unsavedChanges = fileElementsBuffer[changingToIndex].isChanged;
-    selStartX = fileElementsBuffer[changingToIndex].selStartX;
-    selStartY = fileElementsBuffer[changingToIndex].selStartY;
-    selEndX = fileElementsBuffer[changingToIndex].selEndX;
-    selEndY = fileElementsBuffer[changingToIndex].selEndY;
+    selection.selStartX = fileElementsBuffer[changingToIndex].selStartX;
+    selection.selStartY = fileElementsBuffer[changingToIndex].selStartY;
+    selection.selEndX = fileElementsBuffer[changingToIndex].selEndX;
+    selection.selEndY = fileElementsBuffer[changingToIndex].selEndY;
     cursorX = fileElementsBuffer[changingToIndex].cursorX;
     cursorY = fileElementsBuffer[changingToIndex].cursorY;
 }
-void SetInfileElements(std::vector<fileElements>& fileElementsBuffer, int Index , int& lastModifiedTime, bool& unsavedChanges, int& selStartX, int& selStartY, int& selEndX, int& selEndY, int& cursorX, int& cursorY) {
+void SetInfileElements(std::vector<fileElements>& fileElementsBuffer, int Index , int& lastModifiedTime, bool& unsavedChanges, SelectionElements& selection, int& cursorX, int& cursorY) {
     lastModifiedTime = fileElementsBuffer[Index].lastModified;
     unsavedChanges = fileElementsBuffer[Index].isChanged;
-    selStartX = fileElementsBuffer[Index].selStartX;
-    selStartY = fileElementsBuffer[Index].selStartY;
-    selEndX = fileElementsBuffer[Index].selEndX;
-    selEndY = fileElementsBuffer[Index].selEndY;
+    selection.selStartX = fileElementsBuffer[Index].selStartX;
+    selection.selStartY = fileElementsBuffer[Index].selStartY;
+    selection.selEndX = fileElementsBuffer[Index].selEndX;
+    selection.selEndY = fileElementsBuffer[Index].selEndY;
     cursorX = fileElementsBuffer[Index].cursorX;
     cursorY = fileElementsBuffer[Index].cursorY;
 }
@@ -1203,10 +1203,10 @@ void saveFile(const std::string& filename , int& lastModifiedTime, bool& unsaved
     savedCacheIndex = cacheIndex; // Track the cache state when file is saved
 }
 
-void copyClipboard(int startY , int endY, int& selStartY, int& selStartX, int& selEndX, int& selEndY, std::vector<std::string>& buffer, std::string& clipboard){
+void copyClipboard(int startY , int endY, std::vector<std::string>& buffer, std::string& clipboard, SelectionElements& selection){
             for (int y = startY; y <= endY; y++) {
-                int lineStartX = (y == selStartY) ? std::min(selStartX, selEndX) : 0;
-                int lineEndX   = (y == selEndY) ? std::max(selStartX, selEndX) : buffer[y].size();
+                int lineStartX = (y == selection.selStartY) ? std::min(selection.selStartX, selection.selEndX) : 0;
+                int lineEndX   = (y == selection.selEndY) ? std::max(selection.selStartX, selection.selEndX) : buffer[y].size();
                 clipboard += buffer[y].substr(lineStartX, lineEndX - lineStartX);
                 if (y != endY) clipboard += "\n";
             }
@@ -1299,13 +1299,13 @@ void tabOverlay(tabOverlayParams& tabOverlayParamsIn);
 
 void draw(int cursorY, int cursorX, int& rowOffset, 
     const std::string& filename,int lineNumberScheme, 
-    int contentScheme, bool selectionActive,bool unsavedChanges, 
+    int contentScheme, bool unsavedChanges, 
     int& colOffset, int inlineSuggestionNPredict , bool multiFileMode,
     std::vector<std::string> fileList, int activeBufferIndex, std::string detectedLang,
-    std::vector<std::string>& buffer, int& selStartX, int& selStartY,
-    int& selEndX, int& selEndY, bool& showInlineSuggestion,
+    std::vector<std::string>& buffer, 
+    bool& showInlineSuggestion,
     int lastModifiedTime, bool tabOverlayActive, tabOverlayParams tabParams,
-    std::vector<std::string> inlineBuffer, int inlineBufferPosX, int inlineBufferPosY)
+    std::vector<std::string> inlineBuffer, int inlineBufferPosX, int inlineBufferPosY, SelectionElements& selection)
 {
 erase();
 if(detectedLang == "bash"){
