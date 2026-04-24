@@ -40,41 +40,45 @@ const std::string version = "0.1.5-alpha";
 // General Vars
 
 SelectionElements selection;
-std::string clipboard;
+std::string clipboard; // maybe put in selection
 configElement config;
 AiProps AiSettings;
 AiUtils AiVars;
 SearchElement search;
 cursorElement cursor;
+std::string filename;
+inlineSuggestionElement inlineSuggestion;
 
+bool tabOverlayActive = false;
+bool inplacementHappened = false;
+bool unsavedChanges = false;
 int lastModifiedTime = 0;
+int activeBufferIndex = 0;
+int lastEditTime = 0;
+tabOverlayParams tabParams;
+std::string detectedLang = "";
 std::vector<std::string> buffer;
 std::vector<std::string> initialFileBuffer;
-std::vector<std::string> inlineBuffer;
-int inlineBufferPosX = 0;
-int inlineBufferPosY = 0;
-
-
-
-std::string detectedLang = "";
+std::vector<std::string> fileList;
 std::vector<fileElements> fileElementsBuffer;
-bool tabOverlayActive = false;
-tabOverlayParams tabParams;
-bool inplacementHappened = false;
+std::vector<char> openCharList;
+std::vector<std::vector<std::string>> inactiveBuffer;
 
 
-bool unsavedChanges = false;
+
+
+
 bool createNewFile = true;
-std::string configPath = expandPath("~/.config/idet/config");
-int lastEditTime = 0;
-std::string filename;
+std::string configPath = expandPath("/etc/idet/config");
+
+
 std::vector<cacheAction> cacheActionBuffer; 
 int cacheIndex = -1; 
 int savedCacheIndex = -1;
-std::vector<std::vector<std::string>> inactiveBuffer;
-std::vector<std::string> fileList;
-int activeBufferIndex = 0;
-std::vector<char> openCharList;
+
+
+
+
 
 
 
@@ -317,8 +321,8 @@ int main(int argc, char* argv[]) {
             AiSettings.inlineSuggestionNPredict, config.multiFileMode, fileList,
             activeBufferIndex, detectedLang, buffer,
             AiVars.showInlineSuggestion, lastModifiedTime,
-            tabOverlayActive, tabParams, inlineBuffer,
-            inlineBufferPosX, inlineBufferPosY, selection);
+            tabOverlayActive, tabParams, inlineSuggestion.buffer,
+            inlineSuggestion.posX, inlineSuggestion.posY, selection);
         if (search.active) {
             debugWrite("Searching through results...");
             emptySearchOverlay(search.term);
@@ -357,7 +361,7 @@ int main(int argc, char* argv[]) {
         if (timeSinceLastEdit >= AiSettings.AUTO_SUGGESTION_DELAY && !AiVars.autoSuggestionTriggered && 
             !AiVars.showInlineSuggestion && !AiVars.inlineSuggestionExists && AiVars.allowInlineSuggestion) {
             debugWrite("Auto-triggering inline suggestion after " + std::to_string(timeSinceLastEdit) + " seconds");
-            getInlineSuggestion(cursor, buffer, AiSettings.maxInlinePromptSize, AiSettings, inlineBuffer, inlineBufferPosX, inlineBufferPosY, AiVars.showInlineSuggestion);
+            getInlineSuggestion(cursor, buffer, AiSettings.maxInlinePromptSize, AiSettings, inlineSuggestion.buffer, inlineSuggestion.posX, inlineSuggestion.posY, AiVars.showInlineSuggestion);
             AiVars.inlineSuggestionExists = true;
             AiVars.autoSuggestionTriggered = true;
             detectLanguage(buffer, detectedLang, filename); 
@@ -428,7 +432,7 @@ int main(int argc, char* argv[]) {
             case 27: // ESC key
                 if (AiVars.showInlineSuggestion) {
                     AiVars.showInlineSuggestion = false;
-                    inlineBuffer.clear();
+                    inlineSuggestion.buffer.clear();
                     debugWrite("Inline suggestion cancelled with ESC");
                 }
                 else if (search.active) {
@@ -509,11 +513,11 @@ int main(int argc, char* argv[]) {
             case 9:
                 // TAB accepts inline suggestion or inserts spaces
                 {
-                    if (AiVars.inlineSuggestionExists && !inlineBuffer.empty()) {
+                    if (AiVars.inlineSuggestionExists && !inlineSuggestion.buffer.empty()) {
                         // Accept inline suggestion with Tab
                         debugWrite("Accepting inline suggestion via Tab");
-                        for (size_t i = 0; i < inlineBuffer.size(); ++i) {
-                            const std::string& line = inlineBuffer[i];
+                        for (size_t i = 0; i < inlineSuggestion.buffer.size(); ++i) {
+                            const std::string& line = inlineSuggestion.buffer[i];
                             if (i == 0) {
                                 // First line - insert at current cursor position
                                 if (cursor.Y >= buffer.size()) {
@@ -538,7 +542,7 @@ int main(int argc, char* argv[]) {
                         unsavedChanges = true;
                         AiVars.showInlineSuggestion = false;
                         AiVars.inlineSuggestionExists = false;
-                        inlineBuffer.clear();
+                        inlineSuggestion.buffer.clear();
                     } else {
                         // No suggestion - insert tab spaces
                         std::size_t bytePos = char_to_byte_index(buffer[cursor.Y], cursor.X);
@@ -610,10 +614,10 @@ int main(int argc, char* argv[]) {
                 else{
                     // Accept inline Suggestion
                     debugWrite("Accepting inline suggestion");
-                    if (!inlineBuffer.empty()) {
+                    if (!inlineSuggestion.buffer.empty()) {
                         // Insert inline buffer content into the buffer
-                        for (size_t i = 0; i < inlineBuffer.size(); ++i) {
-                            const std::string& line = inlineBuffer[i];
+                        for (size_t i = 0; i < inlineSuggestion.buffer.size(); ++i) {
+                            const std::string& line = inlineSuggestion.buffer[i];
                             
                             if (i == 0) {
                                 // First line - insert at current cursor position
@@ -640,7 +644,7 @@ int main(int argc, char* argv[]) {
                     }
                     AiVars.showInlineSuggestion = false;
                     AiVars.inlineSuggestionExists = false;
-                    inlineBuffer.clear();
+                    inlineSuggestion.buffer.clear();
                     break;
                 }
             }

@@ -27,6 +27,7 @@ struct closeXPos{
     bool hasSecondPos;
     int secondXPos;
 };
+
 class cursorElement {
     public:
         int X;
@@ -230,6 +231,16 @@ std::string fileElementsElementToString(fileElements FileElement) {
     return returnMessage;
 }
 
+class inlineSuggestionElement{
+    public:
+        std::vector<std::string> buffer;
+        int posX;
+        int posY;
+        inlineSuggestionElement()
+            : posX(0),
+              posY(0){}
+};
+
 inline cacheAction createDiff(
     const std::vector<std::string>& oldBuffer,
     const std::vector<std::string>& newBuffer,
@@ -283,7 +294,6 @@ inline void applyDiff(std::vector<std::string>& buffer, const cacheAction& diff)
         buffer.push_back("");
     }
 }
-
 
 std::string beforeCursor(std::string lineContent, int cursorX) {
     if (cursorX <= 0) {
@@ -1065,6 +1075,7 @@ void changeFileElements(std::vector<fileElements>& fileElementsBuffer,int active
     selection = fileElementsBuffer[changingToIndex].selection;
     cursor = fileElementsBuffer[changingToIndex].cursor;
 }
+
 void SetInfileElements(std::vector<fileElements>& fileElementsBuffer, int Index , int& lastModifiedTime, bool& unsavedChanges, SelectionElements& selection, cursorElement cursor) {
     lastModifiedTime = fileElementsBuffer[Index].lastModified;
     unsavedChanges = fileElementsBuffer[Index].isChanged;
@@ -1217,8 +1228,6 @@ static std::wstring utf8_to_wstring(const std::string &s) {
         return result;
     }
 }
-
-
 
 bool checkFileExistance(const std::string& filePath) {
     std::ifstream file(filePath);
@@ -1634,6 +1643,7 @@ void generateEmptyCacheAction(std::vector<cacheAction>& cacheActionBuffer, int& 
     cacheActionBuffer.push_back(emptyAction);
     cacheIndex = cacheActionBuffer.size() - 1;
 }
+
 void displayAISettings(const cursorElement& cursor, int& rowOffset,
      const std::string& filename, int lineNumberScheme, int contentScheme,
       bool selectionActive, bool unsavedChanges, int& colOffset, AiProps& AiSettings){
@@ -1751,7 +1761,6 @@ void displayAISettings(const cursorElement& cursor, int& rowOffset,
         }
     }
 }
-
 
 void loadConfig(std::string configPath, AiProps AiSettings) {
     std::ifstream configFile(configPath);
