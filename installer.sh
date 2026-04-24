@@ -19,8 +19,8 @@ if [[ "$CHOICE" == "update" || "$CHOICE" == "u" || -z "$CHOICE" ]]; then
   cd "$SCRIPT_DIR" || exit 1
   git pull
   echo "Creating config"
-  mkdir -p ~/.config/idet
-  touch ~/.config/idet/config
+  mkdir -p /etc/idet
+  touch /etc/idet/config
   echo "Compiling main.cpp to idet..."    
   g++ -std=c++20 main.cpp -lncursesw -lcurl -o idet
   
@@ -45,7 +45,8 @@ elif [[ "$CHOICE" == "install-repo" || "$CHOICE" == "ir" ]]; then
   git pull
   fi
   echo "Creating config"
-  touch config.json
+  mkdir -p /etc/idet
+  touch /etc/idet/config
   echo "Compiling main.cpp to idet..."
   g++ -std=c++20 main.cpp -lncursesw -lcurl -o idet
   chmod +x idet
@@ -58,7 +59,8 @@ elif [[ "$CHOICE" == "install" || "$CHOICE" == "i" ]]; then
   apt update
   apt install -y git libncurses-dev libcurl4-openssl-dev nlohmann-json3-dev g++ cmake
   echo "Creating config"
-  touch config.json
+  mkdir -p /etc/idet
+  touch /etc/idet/config
   echo "Compiling main.cpp to idet..."
   g++ -std=c++20 main.cpp -lncursesw -lcurl -o idet
   chmod +x idet
