@@ -96,6 +96,53 @@ class SearchElement {
           searchcount(0) {}
 };
 
+class FilePropertiesElement {
+    public:
+        std::string filename;
+        std::string detectedLang;
+        bool unsavedChanges;
+        int lastModifiedTime;
+        int activeBufferIndex;
+        int savedCacheIndex;
+        std::vector<std::string> buffer; // content buffer
+        std::vector<std::string> initialFileBuffer; 
+        std::vector<char> openCharList;
+    FilePropertiesElement()
+        : filename(""),
+          detectedLang(""),
+          unsavedChanges(false),
+          lastModifiedTime(0),
+          activeBufferIndex(0),
+          savedCacheIndex(-1) {}
+
+};
+
+struct fileElements {
+    int lastModified;
+    bool isChanged;
+    cursorElement cursor;
+
+    SelectionElements selection;
+    // legacy
+    int selStartX;
+    int selStartY;
+    int selEndX;
+    int selEndY;
+    int cursorX;
+    int cursorY;
+};
+
+class MultiFilePropertiesElement {
+    public:
+        std::vector<std::string> fileList;
+        std::vector<fileElements> fileElementsBuffer;
+        std::vector<std::vector<std::string>> inactiveBuffer;
+    MultiFilePropertiesElement()
+        : fileList({}),
+          fileElementsBuffer({}),
+          inactiveBuffer({}) {}
+};
+
 class AiProps{
     public:
         std::string AiProvider;
@@ -154,28 +201,6 @@ class AiUtils{
               inlineSuggestionExists(false),
               allowInlineSuggestion(false),
               autoSuggestionTriggered(false){}
-};
-
-struct FileProperties{
-    int lastModifiedTime;
-    bool unsavedChanges;
-    int savedCacheIndex;
-
-};
-
-struct fileElements {
-    int lastModified;
-    bool isChanged;
-    cursorElement cursor;
-
-    SelectionElements selection;
-    // legacy
-    int selStartX;
-    int selStartY;
-    int selEndX;
-    int selEndY;
-    int cursorX;
-    int cursorY;
 };
 
 struct cacheAction {
