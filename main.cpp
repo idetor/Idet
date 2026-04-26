@@ -1082,46 +1082,39 @@ int main(int argc, char* argv[]) {
                 debugWrite(strVecToString(customCommandsBuiltIn));
                 break;
             case KEY_UP:
-                if (cursor.Y > 0) cursor.Y--;
-                cursor.X = std::min(cursor.X, getUtf8StrLen(fileProps.buffer[cursor.Y]));
-                AiVars.showInlineSuggestion = false;
-                AiVars.inlineSuggestionExists = false;
-                search.active = false;
-                break;
             case KEY_DOWN:
-                if (cursor.Y < static_cast<int>(fileProps.buffer.size()) - 1) cursor.Y++;
-                AiVars.showInlineSuggestion = false;
-                AiVars.inlineSuggestionExists = false;
-                search.active = false;
-                cursor.X = std::min(cursor.X, getUtf8StrLen(fileProps.buffer[cursor.Y]));
-                break;
             case KEY_LEFT:
-                if (cursor.X > 0) cursor.X--;
-                AiVars.showInlineSuggestion = false;
-                AiVars.inlineSuggestionExists = false;
-                search.active = false;
-                break;
-            case KEY_RIGHT: {
-                int charCount = getUtf8StrLen(fileProps.buffer[cursor.Y]);
-                if (cursor.X < charCount) cursor.X++;
-                AiVars.showInlineSuggestion = false;
-                AiVars.inlineSuggestionExists = false;
-                search.active = false;
-                break;
-            }
+            case KEY_RIGHT:
             case KEY_HOME:
-                cursor.X = 0;
-                AiVars.showInlineSuggestion = false;
-                AiVars.inlineSuggestionExists = false;
-                search.active = false;
+            case KEY_END:
+                exitInlineSuggestion(AiVars);
+                
+                
+                switch (ch) {
+                    case KEY_UP:
+                        if (cursor.Y > 0) cursor.Y--;
+                        cursor.X = std::min(cursor.X, getUtf8StrLen(fileProps.buffer[cursor.Y]));
+                        break;
+                    case KEY_DOWN:
+                        if (cursor.Y < static_cast<int>(fileProps.buffer.size()) - 1) cursor.Y++;
+                        cursor.X = std::min(cursor.X, getUtf8StrLen(fileProps.buffer[cursor.Y]));
+                        break;
+                    case KEY_LEFT:
+                        if (cursor.X > 0) cursor.X--;
+                        break;
+                    case KEY_RIGHT: {
+                        int charCount = getUtf8StrLen(fileProps.buffer[cursor.Y]);
+                        if (cursor.X < charCount) cursor.X++;
+                        break;
+                    }
+                    case KEY_HOME:
+                        cursor.X = 0;
+                        break;
+                    case KEY_END:
+                        cursor.X = getUtf8StrLen(fileProps.buffer[cursor.Y]);
+                        break;
+                }
                 break;
-            case KEY_END: {
-                search.active = false;
-                cursor.X = getUtf8StrLen(fileProps.buffer[cursor.Y]);
-                AiVars.showInlineSuggestion = false;
-                AiVars.inlineSuggestionExists = false;
-                break;
-            }
             case 10: {
                 AiVars.showInlineSuggestion = false;
                 AiVars.inlineSuggestionExists = false;

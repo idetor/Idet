@@ -343,7 +343,7 @@ class RenderContextData {
 inline cacheAction createDiff(
     const std::vector<std::string>& oldBuffer,
     const std::vector<std::string>& newBuffer,
-     int keyPressed, int pasteSize = 0 , cursorElement cursor) {
+     int keyPressed, int pasteSize = 0 , cursorElement cursor = cursorElement()) {
     
     cacheAction diff;
     diff.action = "edit";
@@ -2125,4 +2125,9 @@ void tabOverlay(tabOverlayParams& tabOverlayParamsIn) {
         attroff(COLOR_PAIR(5));
         debugWrite("Tab Overlay - Displaying cached word: " + tabOverlayParamsIn.cachedWord);
     }
+}
+
+void exitInlineSuggestion(AiUtils& aiVar){
+    aiVar.showInlineSuggestion = false;
+    aiVar.inlineSuggestionExists = false;
 }
