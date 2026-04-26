@@ -447,13 +447,62 @@ int main(int argc, char* argv[]) {
                 break;
             case 19: // CTRL+S
                 debugWrite("CTRL+S pressed - Saving file");
-                saveFile(filename, fileProps.lastModifiedTime, unsavedChanges, fileProps.initialFileBuffer, savedCacheIndex, fileProps.buffer, cacheIndex);
+                {
+                    FileEditState state;
+                    state.filename = filename;
+                    state.lastModifiedTime = fileProps.lastModifiedTime;
+                    state.unsavedChanges = unsavedChanges;
+                    state.initialFileBuffer = fileProps.initialFileBuffer;
+                    state.savedCacheIndex = savedCacheIndex;
+                    state.buffer = fileProps.buffer;
+                    state.cacheIndex = cacheIndex;
+                    // Call original function with unpacked parameters
+                    saveFile(state.filename, state.lastModifiedTime, state.unsavedChanges,
+                             state.initialFileBuffer, state.savedCacheIndex, state.buffer, state.cacheIndex);
+                    fileProps.lastModifiedTime = state.lastModifiedTime;
+                    unsavedChanges = state.unsavedChanges;
+                    savedCacheIndex = state.savedCacheIndex;
+                }
                 break;
             case CTRL_KEY('z'):
-                undo(cursor, fileProps.buffer, cacheActionBuffer, cacheIndex, savedCacheIndex, fileProps.initialFileBuffer, unsavedChanges);
+                {
+                    FileEditState state;
+                    state.cursor = cursor;
+                    state.buffer = fileProps.buffer;
+                    state.cacheActionBuffer = cacheActionBuffer;
+                    state.cacheIndex = cacheIndex;
+                    state.savedCacheIndex = savedCacheIndex;
+                    state.initialFileBuffer = fileProps.initialFileBuffer;
+                    state.unsavedChanges = unsavedChanges;
+                    // Call original function with unpacked parameters
+                    undo(state.cursor, state.buffer, state.cacheActionBuffer, state.cacheIndex, 
+                         state.savedCacheIndex, state.initialFileBuffer, state.unsavedChanges);
+                    cursor = state.cursor;
+                    fileProps.buffer = state.buffer;
+                    cacheActionBuffer = state.cacheActionBuffer;
+                    cacheIndex = state.cacheIndex;
+                    unsavedChanges = state.unsavedChanges;
+                }
                 break;
             case CTRL_KEY('y'):
-                redo(cursor, fileProps.buffer, cacheActionBuffer, cacheIndex, savedCacheIndex, fileProps.initialFileBuffer, unsavedChanges);
+                {
+                    FileEditState state;
+                    state.cursor = cursor;
+                    state.buffer = fileProps.buffer;
+                    state.cacheActionBuffer = cacheActionBuffer;
+                    state.cacheIndex = cacheIndex;
+                    state.savedCacheIndex = savedCacheIndex;
+                    state.initialFileBuffer = fileProps.initialFileBuffer;
+                    state.unsavedChanges = unsavedChanges;
+                    // Call original function with unpacked parameters
+                    redo(state.cursor, state.buffer, state.cacheActionBuffer, state.cacheIndex, 
+                         state.savedCacheIndex, state.initialFileBuffer, state.unsavedChanges);
+                    cursor = state.cursor;
+                    fileProps.buffer = state.buffer;
+                    cacheActionBuffer = state.cacheActionBuffer;
+                    cacheIndex = state.cacheIndex;
+                    unsavedChanges = state.unsavedChanges;
+                }
                 break;
             case 569:
                 debugWrite("CTRL+Tab pressed - Switch to next fileProps.buffer with active fileProps.buffer index: " + std::to_string(fileProps.activeBufferIndex));
@@ -1002,7 +1051,14 @@ int main(int argc, char* argv[]) {
                 AiVars.showInlineSuggestion = false;
                 AiVars.inlineSuggestionExists = false;
                 if (!clipboard.empty()) {
-                    pasteClipboard(cursor.Y, cursor.X, fileProps.buffer, clipboard);
+                    FileEditState state;
+                    state.cursor = cursor;
+                    state.buffer = fileProps.buffer;
+                    // Call original function with unpacked parameters
+                    pasteClipboard(state.cursor.Y, state.cursor.X, state.buffer, clipboard);
+                    cursor = state.cursor;
+                    fileProps.buffer = state.buffer;
+                    unsavedChanges = true;
                     debugWrite("Pasted from clipboard at (" +
                             std::to_string(cursor.Y) + "," +
                             std::to_string(cursor.X) + ")");
@@ -1235,7 +1291,7 @@ int main(int argc, char* argv[]) {
                     pasteSize = clipboard.size();
                 }
                 debugWrite("Appending CacheActionBuffer");
-                appendCacheActionBuffer(bufferBeforeAction, fileProps.buffer, ch, cursor.X, cursor.Y, cacheActionBuffer, config.maxCacheNum, cacheIndex, pasteSize);
+                appendCacheActionBuffer(bufferBeforeAction, fileProps.buffer, ch, cacheActionBuffer, config.maxCacheNum, cacheIndex, pasteSize, cursor);
             }
         }
 

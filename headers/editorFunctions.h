@@ -266,16 +266,90 @@ class inlineSuggestionElement{
               posY(0){}
 };
 
+
+class FileEditState {
+    public:
+        cursorElement cursor;
+        std::vector<std::string> buffer;
+        std::vector<std::string> initialFileBuffer;
+        SelectionElements selection;
+        std::vector<cacheAction> cacheActionBuffer;
+        int cacheIndex;
+        int savedCacheIndex;
+        bool unsavedChanges;
+        int lastModifiedTime;
+        std::string filename;
+        std::string detectedLang;
+
+        FileEditState()
+            : cursor(),
+              buffer(),
+              initialFileBuffer(),
+              selection(),
+              cacheActionBuffer(),
+              cacheIndex(-1),
+              savedCacheIndex(-1),
+              unsavedChanges(false),
+              lastModifiedTime(0),
+              filename(""),
+              detectedLang("") {}
+};
+
+class RenderContextData {
+    public:
+        const cursorElement& cursor;
+        int rowOffset;
+        int colOffset;
+        const std::string& filename;
+        int lineNumberScheme;
+        int contentScheme;
+        bool unsavedChanges;
+        int inlineSuggestionNPredict;
+        bool multiFileMode;
+        const std::vector<std::string>& fileList;
+        int activeBufferIndex;
+        const std::string& detectedLang;
+        const std::vector<std::string>& buffer;
+        bool showInlineSuggestion;
+        int lastModifiedTime;
+        bool tabOverlayActive;
+        const tabOverlayParams& tabParams;
+        const std::vector<std::string>& inlineBuffer;
+        int inlineBufferPosX;
+        int inlineBufferPosY;
+        SelectionElements& selection;
+
+        RenderContextData(
+            const cursorElement& c, int ro, int co,
+            const std::string& fn, int lns, int cs,
+            bool uc, int isnp, bool mfm,
+            const std::vector<std::string>& fl, int abi,
+            const std::string& dl, const std::vector<std::string>& buf,
+            bool sis, int lmt, bool toa,
+            const tabOverlayParams& tp,
+            const std::vector<std::string>& ilb, int ilpx, int ilpy,
+            SelectionElements& sel)
+            : cursor(c), rowOffset(ro), colOffset(co),
+              filename(fn), lineNumberScheme(lns), contentScheme(cs),
+              unsavedChanges(uc), inlineSuggestionNPredict(isnp),
+              multiFileMode(mfm), fileList(fl), activeBufferIndex(abi),
+              detectedLang(dl), buffer(buf),
+              showInlineSuggestion(sis), lastModifiedTime(lmt),
+              tabOverlayActive(toa), tabParams(tp),
+              inlineBuffer(ilb), inlineBufferPosX(ilpx), inlineBufferPosY(ilpy),
+              selection(sel) {}
+};
+
 inline cacheAction createDiff(
     const std::vector<std::string>& oldBuffer,
     const std::vector<std::string>& newBuffer,
-    int cursorX, int cursorY, int keyPressed, int pasteSize = 0) {
+     int keyPressed, int pasteSize = 0 , cursorElement cursor) {
     
     cacheAction diff;
     diff.action = "edit";
     diff.keyPressed = keyPressed;
-    diff.cursorX = cursorX;
-    diff.cursorY = cursorY;
+    diff.cursorX = cursor.X;
+    diff.cursorY = cursor.Y;
     diff.pasteSize = pasteSize;
     diff.affectedStartLine = 0;
     
@@ -1632,15 +1706,15 @@ std::size_t char_to_byte_index(const std::string &s, std::size_t char_idx) {
 }
 
 void appendCacheActionBuffer(const std::vector<std::string>& oldBuffer, const std::vector<std::string>& newBuffer, 
-                             int keyPressed, int cursorX, int cursorY, std::vector<cacheAction>& cacheActionBuffer, 
-                             int maxCacheNum,int cacheIndex, int pasteSize = 0) {
+                             int keyPressed, std::vector<cacheAction>& cacheActionBuffer, 
+                             int maxCacheNum,int cacheIndex, int pasteSize = 0, cursorElement cursor = cursorElement()) {
     if (cacheIndex >= 0 && cacheIndex < (int)cacheActionBuffer.size() - 1) {
         debugWrite("CACHE: clearing redo history from index " + std::to_string(cacheIndex + 1));
         cacheActionBuffer.erase(cacheActionBuffer.begin() + cacheIndex + 1, cacheActionBuffer.end());
     }
     
     
-    cacheAction diff = createDiff(oldBuffer, newBuffer, cursorX, cursorY, keyPressed, pasteSize);
+    cacheAction diff = createDiff(oldBuffer, newBuffer, keyPressed, pasteSize, cursor);
     
     debugWrite("CACHE: createDiff returned: removed=" + std::to_string(diff.removedLines.size()) + 
              ", inserted=" + std::to_string(diff.insertedLines.size()) + 
